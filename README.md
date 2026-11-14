@@ -32,15 +32,26 @@ inner loop off the floating-point unit, whose `MUL` takes some 20 cycles.
 ## The resolutions
 
 The screen is 80×25 characters, each 16×32 pixels, so 1280×800 pixels.
-There are two stages:
+There are three stages:
 
 | Stage | Resolution | How a point is drawn | Pixel shape on the screen |
 |---|---|---|---|
 | 1 | 80×25 | one character cell per point, its background color | 16×32 |
-| 2 | 160×50 | a font of 2×2 blocks in the font RAM | 8×16 |
+| 2 | 80×50 | a glyph of 2×1 blocks, the upper half block, in the font RAM | 16×16 |
+| 3 | 160×50 | a font of 2×2 blocks in the font RAM | 8×16 |
 
-The points are twice as tall as they are wide in both stages, so the
-step in the imaginary direction is twice the step in the real one.
+In stages 1 and 3 the points are twice as tall as they are wide, so the
+step in the imaginary direction is twice the step in the real one. In
+stage 2 they are square, and the two steps are the same.
+
+### Colors in the 2×1 glyph
+
+Stage 2 needs one glyph: the upper half block, its top 16 rows set and
+its bottom 16 clear, which it writes over code `0x80` of the font RAM
+(nice_cpu's DEVICES.md §1.8), a blank in the character ROM. Each cell
+is that glyph, in the top point's color as foreground, on the bottom
+point's color as background. A cell has two points and two colors, so
+the 80×50 image is exact everywhere.
 
 ### Colors in the 2×2 font
 
@@ -54,7 +65,7 @@ cell shows at most two colors, whatever its glyph. The four points of
 a cell can have four different counts. Where they do, the program must
 pick two colors for the cell, for example those of the two most frequent
 counts, and draw each of the other blocks in the nearer of the two. So
-the 160×50 image is exact where neighbouring points have at most two
+the 160×50 image of stage 3 is exact where neighbouring points have at most two
 colors, which is most of the screen, and approximate along the bands
 where the colors change quickly, near the border of the set.
 
@@ -84,6 +95,7 @@ the pipelined core. That is about 0.6 µs per iteration.
 | Resolution | Points | Iterations | C (≈ 0.6 µs each) | NICE BASIC (≈ 20–30 µs each) |
 |---|---|---|---|---|
 | 80×25 | 2000 | 130 000 | ≈ 0.1 s (0.05–0.15) | ≈ 3–4 s |
+| 80×50 | 4000 | 260 000 | ≈ 0.15 s (0.1–0.25) | ≈ 5–8 s |
 | 160×50 | 8000 | 520 000 | ≈ 0.3 s (0.2–0.5) | ≈ 10–15 s |
 
 The BASIC column is the roughest. It assumes an interpreter that spends
@@ -104,20 +116,22 @@ Notes on the estimate:
 
 ## Building and running
 
-Stage 1 builds with the toolchain of a checkout of
+Stages 1 and 2 build with the toolchain of a checkout of
 [nice_cpu](https://github.com/MJoergen/nice_cpu), `../nice_cpu` by
 default (`NICE_CPU=DIR`), with niceemu built in it
 (`make -C ../nice_cpu/emulator build`), and clang with the wasm32 target.
 
-    make all     # build/nice/stage1.bin for niceemu, build/mega65/stage1.bin
+    make all     # build/nice/stageN.bin for niceemu, build/mega65/stageN.bin
                  # for the MEGA65's monitor at 0x8000, build/host/mandel_host
-    make test    # both NICE builds in niceemu, their screens compared with the host's
-    make run     # stage 1 in niceemu, its screen printed in color
+    make test    # both NICE builds of each stage in niceemu, their screens
+                 # compared with the host's
+    make run     # stage 2 in niceemu, its screen printed in color (STAGE=1 for stage 1)
 
-The program draws the picture row by row, then writes the iterations,
-cycles, instructions, and microseconds it took to the console's line,
-and waits for a key. On a key it clears the screen and returns. At the
-end of the console's input, as in niceemu, it returns at once.
+Each program draws the picture a row of cells at a time, then writes
+the iterations, cycles, instructions, and microseconds it took to the
+console's line, and waits for a key. On a key it clears the screen,
+shows the character ROM again, and returns. At the end of the console's
+input, as in niceemu, it returns at once.
 
 The files:
 
@@ -125,17 +139,27 @@ The files:
   fraction bits, and the colors. On NICE each product is one of the math
   unit, through `nice_poke` and `nice_peek`; on the host it is a 64-bit
   product in C, with the same bits.
-- `src/stage1.c`: stage 1, for NICE.
-- `src/host.c`: stage 1 on the host, as characters, or as the screen
-  words of the NICE build, for `make test`.
+- `src/stage1.c`, `src/stage2.c`: stages 1 and 2, for NICE.
+- `src/report.c`, `src/report.h`: the figures of a run, written to the
+  console's register, so that under the monitor they go to the line and
+  not over the picture.
+- `src/host.c`: stages 1 and 2 on the host, as characters, or as the
+  screen words of the NICE builds, for `make test`.
 
 ## Status
 
-Stage 1 is written and runs in niceemu. In niceemu it takes 152 085
-iterations, 76 per point on average, and 6 246 779 instructions, so
-about 41 instructions per iteration. At the 54 million instructions a
-second that nice_chess measures on the MEGA65, that is about 0.12 s.
-It is not yet run on the board.
+Stages 1 and 2 are written and run in niceemu. They are not yet run on
+the board. In niceemu:
+
+| Stage | Iterations | Per point | Instructions | At 54 million a second |
+|---|---|---|---|---|
+| 1, 80×25 | 152 085 | 76 | 6 212 940 | ≈ 0.12 s |
+| 2, 80×50 | 297 888 | 74 | 12 157 703 | ≈ 0.23 s |
+
+That is about 41 instructions per iteration. The rate of 54 million
+instructions a second on the MEGA65 is the one nice_chess measures.
+Stage 2 also copies the character ROM into the font RAM before it
+starts the clock, 8192 words.
 
 ## License
 
