@@ -102,9 +102,40 @@ Notes on the estimate:
 - The figures are to be checked against the performance counters
   (DEVICES.md §3), which count cycles and microseconds on the board.
 
+## Building and running
+
+Stage 1 builds with the toolchain of a checkout of
+[nice_cpu](https://github.com/MJoergen/nice_cpu), `../nice_cpu` by
+default (`NICE_CPU=DIR`), with niceemu built in it
+(`make -C ../nice_cpu/emulator build`), and clang with the wasm32 target.
+
+    make all     # build/nice/stage1.bin for niceemu, build/mega65/stage1.bin
+                 # for the MEGA65's monitor at 0x8000, build/host/mandel_host
+    make test    # both NICE builds in niceemu, their screens compared with the host's
+    make run     # stage 1 in niceemu, its screen printed in color
+
+The program draws the picture row by row, then writes the iterations,
+cycles, instructions, and microseconds it took to the console's line,
+and waits for a key. On a key it clears the screen and returns. At the
+end of the console's input, as in niceemu, it returns at once.
+
+The files:
+
+- `src/mandel.c`, `src/mandel.h`: the iteration, in fixed point with 25
+  fraction bits, and the colors. On NICE each product is one of the math
+  unit, through `nice_poke` and `nice_peek`; on the host it is a 64-bit
+  product in C, with the same bits.
+- `src/stage1.c`: stage 1, for NICE.
+- `src/host.c`: stage 1 on the host, as characters, or as the screen
+  words of the NICE build, for `make test`.
+
 ## Status
 
-Nothing is written yet. The first step is stage 1, in C.
+Stage 1 is written and runs in niceemu. In niceemu it takes 152 085
+iterations, 76 per point on average, and 6 246 779 instructions, so
+about 41 instructions per iteration. At the 54 million instructions a
+second that nice_chess measures on the MEGA65, that is about 0.12 s.
+It is not yet run on the board.
 
 ## License
 
