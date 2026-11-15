@@ -7,6 +7,11 @@ the [NICE CPU](https://github.com/MJoergen/nice_cpu) on the MEGA65, and in
 `niceemu`. It is written in C first, and later in NICE BASIC, the
 interpreter planned for the ROM of NiceMonMEGA65.
 
+![Stage 2, the Mandelbrot set at 80×50](docs/stage2.png)
+
+Stage 2 at 80×50, 1280×800 pixels, drawn from the screen that niceemu
+dumps after the run.
+
 ## The algorithm
 
 Each point c of the complex plane is iterated by z ↦ z² + c, starting
@@ -126,6 +131,7 @@ default (`NICE_CPU=DIR`), with niceemu built in it
     make test    # both NICE builds of each stage in niceemu, their screens
                  # compared with the host's
     make run     # stage 2 in niceemu, its screen printed in color (STAGE=1 for stage 1)
+    make screenshot  # docs/stage2.png, stage 2's screen in niceemu (needs Pillow)
 
 Each program draws the picture a row of cells at a time, then writes
 the iterations, cycles, instructions, and microseconds it took to the
@@ -145,6 +151,8 @@ The files:
   not over the picture.
 - `src/host.c`: stages 1 and 2 on the host, as characters, or as the
   screen words of the NICE builds, for `make test`.
+- `tools/screenshot.py`: stage 2's screen words as a PNG, for
+  `make screenshot`.
 
 ## Status
 

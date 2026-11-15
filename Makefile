@@ -24,7 +24,7 @@ CORE    = src/mandel.c
 NICELIB = src/report.c
 HEADERS = src/mandel.h src/report.h Makefile
 
-.PHONY: help all test run clean
+.PHONY: help all test run screenshot clean
 .SECONDARY:
 help:
 	@echo "nice_mandelbrot: the Mandelbrot set on the NICE CPU"
@@ -32,6 +32,7 @@ help:
 	@echo "  make all     build stages 1 (80x25) and 2 (80x50) for niceemu, for the MEGA65, and for the host"
 	@echo "  make test    run both stages in niceemu, and compare their screens with the host's"
 	@echo "  make run     run stage STAGE (default 2) in niceemu, and print its screen in color"
+	@echo "  make screenshot  draw stage 2's screen in niceemu as docs/stage2.png (needs Pillow)"
 	@echo "  make clean   remove build/"
 	@echo ""
 	@echo "  NICE_CPU=DIR the nice_cpu checkout (default ../nice_cpu)"
@@ -108,6 +109,13 @@ test: $(foreach s,$(STAGES),build/test/stage$(s).out build/test/mon_stage$(s).ou
 
 run: build/nice/stage$(STAGE).bin
 	$(NICEEMU) --color $< < /dev/null
+
+# The picture of the README: stage 2's screen in niceemu, 1280x800.
+screenshot: docs/stage2.png
+
+docs/stage2.png: build/test/stage2.out tools/screenshot.py
+	@mkdir -p $(@D)
+	grep -E '^ff' $< | cut -d: -f2 | tr ' ' '\n' | grep . | $(PYTHON) tools/screenshot.py /dev/stdin $@
 
 clean:
 	rm -rf build
