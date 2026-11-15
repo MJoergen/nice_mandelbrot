@@ -7,17 +7,17 @@ the [NICE CPU](https://github.com/MJoergen/nice_cpu) on the MEGA65, and in
 `niceemu`. It is written in C first, and later in NICE BASIC, the
 interpreter planned for the ROM of NiceMonMEGA65.
 
-![Stage 2, the Mandelbrot set at 80×50](docs/stage2.png)
+![Stage 3, the Mandelbrot set at 160×100](docs/stage3.png)
 
-Stage 2 at 80×50, 1280×800 pixels, drawn from the screen that niceemu
+Stage 3 at 160×100, 1280×800 pixels, drawn from the screen that niceemu
 dumps after the run, with the name and the version in the top right
 corner.
 
 ## Download
 
 Each [release](https://github.com/MJoergen/nice_mandelbrot/releases)
-has one file, stage 2 for the MEGA65, such as
-`nice_mandelbrot_1.0.bin` of V1.0. It needs the monitor of
+has one file for the MEGA65, such as `nice_mandelbrot_1.0.bin` of
+V1.0: stage 2 up to V1.0, and stage 3 from the release after it. It needs the monitor of
 NiceMonMEGA65 V2.1 or later. Copy it into the folder `NICE` of the SD
 card, and at the monitor's prompt type
 
@@ -58,11 +58,17 @@ There are three stages:
 |---|---|---|---|
 | 1 | 80×25 | one character cell per point, its background color | 16×32 |
 | 2 | 80×50 | a glyph of 2×1 blocks, the upper half block, in the font RAM | 16×16 |
-| 3 | 160×50 | a font of 2×2 blocks in the font RAM | 8×16 |
+| 3 | 160×100 | a font of 2×4 blocks, the octants, in the font RAM | 8×8 |
 
-In stages 1 and 3 the points are twice as tall as they are wide, so the
-step in the imaginary direction is twice the step in the real one. In
-stage 2 they are square, and the two steps are the same.
+In stage 1 the points are twice as tall as they are wide, so the step
+in the imaginary direction is twice the step in the real one. In
+stages 2 and 3 they are square, and the two steps are the same.
+
+![Stage 2, the Mandelbrot set at 80×50](docs/stage2.png)
+
+A font of 2×2 blocks, at 160×50, was planned for stage 3 at first. The
+octants have the same width, twice the height, and square points, so
+they took its place (issue #1).
 
 ### Colors in the 2×1 glyph
 
@@ -73,26 +79,29 @@ is that glyph, in the top point's color as foreground, on the bottom
 point's color as background. A cell has two points and two colors, so
 the 80×50 image is exact everywhere.
 
-### Colors in the 2×2 font
+### Colors in the octants
 
-The 2×2 font has 2⁴ = 16 glyphs, one for each pattern of set blocks,
-written to the font RAM (nice_cpu's SYSTEM.md §1.8). A set block is
-drawn in the cell's foreground color, and a clear block in its
-background color.
+A cell of stage 3 has eight points, two across and four down. Point i,
+row-major from the top left, is bit 7 − i of the cell's pattern, and a
+set bit is drawn in the cell's foreground color, a clear bit in its
+background color (nice_cpu's SYSTEM.md §1.8).
 
 A screen word has only one foreground and one background color, so a
-cell shows at most two colors, whatever its glyph. The four points of
-a cell can have four different counts. Where they do, the program must
-pick two colors for the cell, for example those of the two most frequent
-counts, and draw each of the other blocks in the nearer of the two. So
-the 160×50 image of stage 3 is exact where neighbouring points have at most two
-colors, which is most of the screen, and approximate along the bands
-where the colors change quickly, near the border of the set.
+cell shows at most two colors, whatever its glyph. The program takes
+the most frequent color of the eight points, and the most frequent of
+the others, each the first in the order of the points when two are as
+frequent. A point of a third color is drawn in the one of the two
+nearer to it in RGB, the first of the two when they are as near. So
+the image is exact where a cell's points have at most two colors, which
+is most of the screen, and approximate along the bands where the colors
+change quickly, near the border of the set. The rules are fixed, so
+that the host computes the same screen as the NICE builds.
 
-The choice of glyph and colors is not unique: a pattern and its inverse
-with the colors swapped look the same. Only 8 of the 16 glyphs are
-needed if the program always puts, say, the top-left block in the
-background color.
+A pattern and its inverse, with the colors swapped, look the same, so
+the program always draws the top-left point in the foreground: bit 7 is
+set, and the glyph's code is the pattern itself, `0x80` to `0xFF`.
+Those 128 glyphs replace codes `0x80`–`0xFF` of the copy of the
+character ROM, and `0x00`–`0x7F` keep its ASCII for the label.
 
 ## Estimated running times
 
@@ -117,6 +126,7 @@ the pipelined core. That is about 0.6 µs per iteration.
 | 80×25 | 2000 | 130 000 | ≈ 0.1 s (0.05–0.15) | ≈ 3–4 s |
 | 80×50 | 4000 | 260 000 | ≈ 0.15 s (0.1–0.25) | ≈ 5–8 s |
 | 160×50 | 8000 | 520 000 | ≈ 0.3 s (0.2–0.5) | ≈ 10–15 s |
+| 160×100 | 16 000 | 1 040 000 | ≈ 0.6 s (0.4–1.0) | ≈ 20–30 s |
 
 The BASIC column is the roughest. It assumes an interpreter that spends
 some 1000 to 3000 cycles on each statement of the loop, with its numbers
@@ -138,7 +148,7 @@ Notes on the estimate:
 
 ## Building and running
 
-Stages 1 and 2 build with the toolchain of
+Stages 1 to 3 build with the toolchain of
 [nice_cpu](https://github.com/MJoergen/nice_cpu) V2.1, which `make deps`
 fetches into `deps/`, with niceemu from that release's files, and need
 clang with the wasm32 target, `wasm-ld`, and `llvm-ar`. `NICE_CPU=DIR`
@@ -148,10 +158,12 @@ and `NICEEMU=PATH` use a local checkout and niceemu instead.
     make all     # build/nice/stageN.bin for niceemu, build/mega65/stageN.bin
                  # for the MEGA65's monitor at 0x8000, build/host/mandel_host
     make test    # both NICE builds of each stage in niceemu, their screens
-                 # compared with the host's, also after a series of keys
-    make run     # stage 2 in niceemu, its screen printed in color (STAGE=1 for stage 1)
-    make explore # stage 2 in niceemu's window, to pan and zoom (fetches niceemu's window build)
-    make screenshot  # docs/stage2.png, stage 2's screen in niceemu (needs Pillow)
+                 # and glyphs compared with the host's, also after a series of keys
+    make run     # stage 2 in niceemu, its screen printed in color (STAGE=1 or 3)
+    make explore # stage 2 in niceemu's window, to pan and zoom (STAGE=3 for
+                 # stage 3; fetches niceemu's window build)
+    make screenshot  # docs/stage2.png and docs/stage3.png, the screens in niceemu
+                 # (needs Pillow)
     make dist    # build/dist/nice_mandelbrot_1.0.bin, the file of a release (VERSION=V1.0)
 
 On the MEGA65 under NiceMonMEGA65's monitor, with a checkout of
@@ -159,8 +171,8 @@ NiceMonMEGA65 for its tools (`NICEMON=DIR`, `../NiceMonMEGA65` by
 default), and the board on its Ethernet port (`ETH=IP`) or its debug
 UART (`PORT=DEVICE`):
 
-    make board-run       # stage 2 on the board
-    make board-test      # stage 2 on the board, its screens compared with the host's
+    make board-run       # stage 3 on the board
+    make board-test      # stages 2 and 3 on the board, their screens compared with the host's
     make release-check   # board-test, and the stamp of a release (docs/RELEASE.md)
 
 Each program draws the picture a row of cells at a time, then writes
@@ -169,13 +181,13 @@ console's line, and waits for a key. In stage 1, any key clears the
 screen and returns. At the end of the console's input, as in niceemu,
 it returns at once.
 
-### Pan and zoom in stage 2
+### Pan and zoom in stages 2 and 3
 
-Stage 2 takes these keys:
+Stages 2 and 3 take these keys:
 
 | Key | Action |
 |---|---|
-| ← → ↑ ↓ | Pan by 8 points, a tenth of the width |
+| ← → ↑ ↓ | Pan by a tenth of the width, 8 points in stage 2 and 16 in stage 3 |
 | `+` or `=` | Zoom in, twice, about the middle |
 | `-` or `_` | Zoom out, twice |
 | `0` | The whole set again |
@@ -191,7 +203,8 @@ their figures.
 
 Each zoom in halves the step between points, from 3/80 at the start
 down to 2⁻²⁴, after 19 zooms, where the points are a step of the fixed
-point apart. Each also adds 64 to the highest count, 256 at the start,
+point apart. Stage 3 shows the same part of the plane at each zoom,
+with points half as far apart, from 3/160, so it reaches 2⁻²⁴ after 18. Each also adds 64 to the highest count, 256 at the start,
 so that the border of the set keeps its detail: 1472 at the deepest. One
 zoom out from the start is allowed, to a width of 6, and the view stays
 inside −4 to 4 on both axes, where the fixed point cannot overflow
@@ -209,20 +222,23 @@ The files:
   fraction bits, and the colors. On NICE each product is one of the math
   unit, through `nice_poke` and `nice_peek`; on the host it is a 64-bit
   product in C, with the same bits.
-- `src/view.c`, `src/view.h`: the view of stage 2, and the keys that
-  pan and zoom it, for NICE and for the host.
+- `src/view.c`, `src/view.h`: the view of stages 2 and 3, and the keys
+  that pan and zoom it, for NICE and for the host.
 - `src/label.c`, `src/label.h`: the name and the version in the top
-  right corner of stage 2, for NICE and for the host. The version is
+  right corner of stages 2 and 3, for NICE and for the host. The version is
   `git describe`'s, in `build/gen/version.c`, or the tag's in a
   release.
-- `src/stage1.c`, `src/stage2.c`: stages 1 and 2, for NICE.
+- `src/stage1.c`, `src/stage2.c`, `src/stage3.c`: the stages, for
+  NICE. The octants' colors and glyphs of stage 3 are in `src/mandel.c`
+  and `src/mandel.h`, shared with the host.
 - `src/report.c`, `src/report.h`: the figures of a run, written to the
   console's register, so that under the monitor they go to the line and
   not over the picture.
-- `src/host.c`: stages 1 and 2 on the host, as characters, or as the
+- `src/host.c`: the stages on the host, as characters, or as the
   screen words of the NICE builds, for `make test`. `--keys` applies a
-  series of keys to the view of stage 2 first.
-- `tools/screenshot.py`: stage 2's screen as a PNG, its cells drawn
+  series of keys to the view of stage 2 or 3 first, and `--glyphs`
+  prints the stage's glyphs in the font RAM.
+- `tools/screenshot.py`: a screen as a PNG, its cells drawn
   from the font RAM, for `make screenshot`.
 - `tools/words.py`: the words of a dump of niceemu or the board, by
   address, for the tests.
@@ -234,15 +250,17 @@ The files:
 
 ## Status
 
-Stages 1 and 2 are written and run in niceemu, stage 2 with pan and
-zoom. Stage 2 is the file of a release; `make board-test` runs it on
-the board. Stage 3 and the NICE BASIC version are not written yet. In
-niceemu, stage 2 with the label of V1.0:
+Stages 1 to 3 are written and run in niceemu, stages 2 and 3 with pan
+and zoom. Stage 3 is the file of a release; `make board-test` runs
+stages 2 and 3 on the board, where stage 3 draws the whole set in
+0.16 s. The NICE BASIC version is not written yet. In niceemu,
+stages 2 and 3 with the label of V1.0:
 
 | Stage | Count | Per point | Instructions | At 54 million a second | Without the test |
 |---|---|---|---|---|---|
 | 1, 80×25 | 152 085 | 76 | 1 252 824 | ≈ 0.023 s | 6 077 411 |
-| 2, 80×50 | 297 888 | 74 | 2 366 125 | ≈ 0.044 s | 11 937 238 |
+| 2, 80×50 | 297 888 | 74 | 2 366 225 | ≈ 0.044 s | 11 937 338 |
+| 3, 160×100 | 1 191 390 | 74 | 10 592 221 | ≈ 0.20 s | 49 041 256 |
 
 The count is the total of the points' counts, as the programs report it
 under `iterations`: a point in the main cardioid or the period-2 bulb
@@ -251,12 +269,14 @@ counts as 256, though the test before the loop
 about 40 instructions per iteration, and the test makes them some 5
 times faster, with the same picture, word for word. In the view of
 `make test` after the keys, near the border at zoom level 3, it is 15
-times faster: 3 616 517 instructions, from 55 509 527. The rate of 54
+times faster: 3 616 617 instructions, from 55 509 627, and in stage 3
+14 times: 16 176 405, from 223 681 435. The rate of 54
 million instructions a second on the MEGA65 is the one nice_chess
 measures.
-Stage 2 also copies the character ROM into the font RAM before it
-starts the clock, 8192 words. Its label in the top right corner costs
-some 20 000 instructions a picture.
+Stages 2 and 3 also write the font RAM, 8192 words, before they start
+the clock: stage 2 copies the character ROM, and stage 3 its first half
+and the octants. The label in the top right corner costs some 20 000
+instructions a picture.
 
 ## License
 

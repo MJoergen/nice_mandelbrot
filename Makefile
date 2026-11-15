@@ -16,7 +16,7 @@ NICEMON        ?= ../NiceMonMEGA65
 PYTHON         ?= python3
 CC             ?= cc
 STAGE          ?= 2
-# The version in the corner of stage 2: the release tag on a tagged
+# The version in the corner of stages 2 and 3: the release tag on a tagged
 # commit, such as V1.0, and git describe's name of the commit between
 # tags. The release workflow sets it to the tag.
 VERSION ?= $(shell git describe --tags --match 'V[0-9]*' --always --dirty 2>/dev/null || echo unknown)
@@ -36,7 +36,7 @@ NICEFLAGS = -O 2 -D NDEBUG --no-bounds-checks --trust-alignment --symbols
 MONFLAGS  = $(NICEFLAGS) --monitor
 HOSTFLAGS = -O2 -W -Wall -Wextra
 
-STAGES   = 1 2
+STAGES   = 1 2 3
 VERSIONC = build/gen/version.c
 CORE     = src/mandel.c src/view.c src/label.c $(VERSIONC)
 NICELIB  = src/report.c
@@ -48,21 +48,23 @@ help:
 	@echo "nice_mandelbrot: the Mandelbrot set on the NICE CPU"
 	@echo ""
 	@echo "  make deps    fetch nice_cpu $(NICE_CPU_TAG) and niceemu $(NICE_CPU_TAG) into deps/"
-	@echo "  make all     build stages 1 (80x25) and 2 (80x50) for niceemu, for the MEGA65, and for the host"
-	@echo "  make test    run both stages in niceemu, and compare their screens with the host's,"
-	@echo "               also after a series of keys in stage 2"
+	@echo "  make all     build stages 1 (80x25), 2 (80x50), and 3 (160x100) for niceemu,"
+	@echo "               for the MEGA65, and for the host"
+	@echo "  make test    run the stages in niceemu, and compare their screens with the host's,"
+	@echo "               also after a series of keys in stages 2 and 3"
 	@echo "  make run     run stage STAGE (default 2) in niceemu, and print its screen in color"
-	@echo "  make explore run stage 2 in niceemu's window, to pan and zoom with the keys"
+	@echo "  make explore run stage STAGE (2 or 3) in niceemu's window, to pan and zoom with the keys"
 	@echo "               (fetches niceemu's window build into deps/)"
-	@echo "  make screenshot  draw stage 2's screen in niceemu as docs/stage2.png (needs Pillow)"
+	@echo "  make screenshot  draw the screens of stages 2 and 3 in niceemu as docs/stageN.png"
+	@echo "               (needs Pillow)"
 	@echo "  make dist    the file of a release, build/dist/nice_mandelbrot_1.0.bin (VERSION=V1.0)"
 	@echo "  make clean   remove build/"
 	@echo "  make distclean   remove build/ and deps/"
 	@echo ""
 	@echo "The board (ETH=IP or PORT=DEVICE, and NICEMON=DIR, a checkout of NiceMonMEGA65,"
 	@echo "default ../NiceMonMEGA65):"
-	@echo "  make board-run      run stage 2 on the MEGA65 under the monitor"
-	@echo "  make board-test     the tests of stage 2 on the board, its screens against the host's"
+	@echo "  make board-run      run stage 3 on the MEGA65 under the monitor"
+	@echo "  make board-test     the tests of stages 2 and 3 on the board, their screens against the host's"
 	@echo "  make release-check  board-test, and the stamp that tools/release.py tag needs (docs/RELEASE.md)"
 	@echo ""
 	@echo "  NICE_CPU=DIR and NICEEMU=PATH use local copies of nice_cpu and niceemu."
@@ -131,15 +133,16 @@ build/test/host%.words: build/host/mandel_host
 	@mkdir -p $(@D)
 	$< $* --words > $@
 
-# The glyph of stage 2, code 0x80 of the font RAM: rows 0 to 15 set,
-# 16 to 31 clear. Then the font base, which shows the font RAM.
-build/test/glyph.words:
+# The glyphs of stages 2 and 3 in the font RAM from code 0x80, then
+# the font base, which shows the font RAM: the upper half block of
+# stage 2, and the 128 octants of stage 3, 32 and 4096 words.
+build/test/glyph%.words: build/host/mandel_host
 	@mkdir -p $(@D)
-	@for r in $$(seq 16); do echo 0000ffff; done > $@
-	@for r in $$(seq 16); do echo 00000000; done >> $@
-	@echo fffe0000 >> $@
+	$< $* --glyphs > $@
+GLYPH_WORDS_2 = 32
+GLYPH_WORDS_3 = 4096
 
-# Stage 2 after a series of keys: pan left and up (both forms of the
+# Stages 2 and 3 after a series of keys: pan left and up (both forms of the
 # cursor keys), zoom in four times, out twice, and in again (both keys
 # for each), and F9 between, which does nothing. The screen is that of the view
 # after the last key, as each key that moves the view starts a new
@@ -160,27 +163,31 @@ build/test/keys_host%.words: build/host/mandel_host
 
 # check STAGE OUT DUMP HOST [KEYS]: the screen of the run's DUMP must be
 # the host's words HOST, word for word, and the last count of iterations
-# in its output OUT the host's, after the keys KEYS. Stage 2 must also
-# have its glyph shown.
+# in its output OUT the host's, after the keys KEYS. Stages 2 and 3
+# must also have their glyphs shown.
 define check
 	$(WORDS) $(3) 0xFFFF0000 2000 | cmp - $(4)
-	[ $(1) != 2 ] || { $(WORDS) $(3) 0xFFFE1000 32; $(WORDS) $(3) 0xFFFFFF86 1; } | cmp - build/test/glyph.words
+	[ $(1) = 1 ] || { $(WORDS) $(3) 0xFFFE1000 $(GLYPH_WORDS_$(1)); $(WORDS) $(3) 0xFFFFFF86 1; } | \
+	  cmp - build/test/glyph$(1).words
 	[ "$$(grep '^iterations' $(2) | tail -1)" = \
 	  "iterations   $$(build/host/mandel_host $(1) $(if $(5),--keys "$$(printf '$(5)')") --count)" ] || \
 	  { echo "$(2): the iterations differ from the host's"; exit 1; }
 endef
 
+KEY_STAGES = 2 3
+
 test: $(foreach s,$(STAGES),build/test/stage$(s).out build/test/mon_stage$(s).out \
-      build/test/host$(s).words) build/test/glyph.words \
-      build/test/keys_stage2.out build/test/keys_mon_stage2.out build/test/keys_host2.words
+      build/test/host$(s).words) \
+      $(foreach s,$(KEY_STAGES),build/test/glyph$(s).words build/test/keys_stage$(s).out \
+      build/test/keys_mon_stage$(s).out build/test/keys_host$(s).words)
 	@$(foreach s,$(STAGES),$(foreach o,stage$(s) mon_stage$(s), \
 	  $(call check,$(s),build/test/$(o).out,build/test/$(o).out,build/test/host$(s).words)$(newline)))
-	@$(foreach o,keys_stage2 keys_mon_stage2, \
-	  $(call check,2,build/test/$(o).out,build/test/$(o).out,build/test/keys_host2.words,$(KEYS))$(newline))
+	@$(foreach s,$(KEY_STAGES),$(foreach o,keys_stage$(s) keys_mon_stage$(s), \
+	  $(call check,$(s),build/test/$(o).out,build/test/$(o).out,build/test/keys_host$(s).words,$(KEYS))$(newline)))
 	@for s in $(STAGES); do grep -A4 '^nice_mandelbrot' build/test/stage$$s.out; done
-	@echo "stage 2 after keys:"
-	@grep -A4 '^nice_mandelbrot' build/test/keys_stage2.out | tail -5
-	@echo "stages 1 and 2: both builds' screens and iterations match the host's, also after keys"
+	@for s in $(KEY_STAGES); do echo "stage $$s after keys:"; \
+	  grep -A4 '^nice_mandelbrot' build/test/keys_stage$$s.out | tail -5; done
+	@echo "stages 1 to 3: both builds' screens and iterations match the host's, also after keys"
 
 define newline
 
@@ -190,14 +197,15 @@ endef
 run: build/nice/stage$(STAGE).bin | $(NICEEMU)
 	$(NICEEMU) --color $< < /dev/null
 
-# Stage 2 in niceemu's window, with the keys typed into it.
-explore: build/nice/stage2.bin | $(NICEEMU_WINDOW)
+# Stage 2 or 3 in niceemu's window, with the keys typed into it.
+explore: build/nice/stage$(STAGE).bin | $(NICEEMU_WINDOW)
 	$(NICEEMU_WINDOW) --window $<
 
-# The picture of the README: stage 2's screen in niceemu, 1280x800.
-screenshot: docs/stage2.png
+# The pictures of the README: the screens of stages 2 and 3 in
+# niceemu, 1280x800.
+screenshot: docs/stage2.png docs/stage3.png
 
-docs/stage2.png: build/test/stage2.out tools/screenshot.py tools/words.py
+docs/stage%.png: build/test/stage%.out tools/screenshot.py tools/words.py
 	@mkdir -p $(@D)
 	$(PYTHON) tools/screenshot.py $< $@
 
@@ -206,33 +214,41 @@ docs/stage2.png: build/test/stage2.out tools/screenshot.py tools/words.py
 # the font once the program is quiet, and then ends its input.
 BOARD = $(PYTHON) tools/board.py $(BOARDLINK)
 
-board-run: build/mega65/stage2.bin
+board-run: build/mega65/stage3.bin
 	$(PYTHON) $(NICEMON)/tools/load.py $(BOARDLINK) --monitor $<
 
-# Stage 2 on the board, as make test runs the MEGA65 build in niceemu:
-# with no keys, and after the keys of KEYS.
-board-test: build/mega65/stage2.bin build/test/host2.words build/test/keys_host2.words build/test/glyph.words
+# Stages 2 and 3 on the board, as make test runs the MEGA65 builds in
+# niceemu: with no keys, and after the keys of KEYS.
+BOARD_STAGES = 2 3
+
+# board_check STAGE: the two runs of stage STAGE on the board, checked.
+define board_check
+	$(BOARD) --dump build/board/stage$(1).dump build/mega65/stage$(1).bin < /dev/null > build/board/stage$(1).out
+	@$(call check,$(1),build/board/stage$(1).out,build/board/stage$(1).dump,build/test/host$(1).words)
+	printf '$(KEYS)' | $(BOARD) --dump build/board/keys_stage$(1).dump build/mega65/stage$(1).bin > build/board/keys_stage$(1).out
+	@$(call check,$(1),build/board/keys_stage$(1).out,build/board/keys_stage$(1).dump,build/test/keys_host$(1).words,$(KEYS))
+	@grep -A4 '^nice_mandelbrot' build/board/stage$(1).out
+	@echo "stage $(1) after keys:"
+	@grep -A4 '^nice_mandelbrot' build/board/keys_stage$(1).out | tail -5
+endef
+
+board-test: $(foreach s,$(BOARD_STAGES),build/mega65/stage$(s).bin build/test/host$(s).words \
+            build/test/keys_host$(s).words build/test/glyph$(s).words)
 	@mkdir -p build/board
-	$(BOARD) --dump build/board/stage2.dump $< < /dev/null > build/board/stage2.out
-	@$(call check,2,build/board/stage2.out,build/board/stage2.dump,build/test/host2.words)
-	printf '$(KEYS)' | $(BOARD) --dump build/board/keys_stage2.dump $< > build/board/keys_stage2.out
-	@$(call check,2,build/board/keys_stage2.out,build/board/keys_stage2.dump,build/test/keys_host2.words,$(KEYS))
-	@grep -A4 '^nice_mandelbrot' build/board/stage2.out
-	@echo "stage 2 after keys:"
-	@grep -A4 '^nice_mandelbrot' build/board/keys_stage2.out | tail -5
-	@echo "stage 2 on the board: its screens and iterations match the host's, also after keys"
+	$(foreach s,$(BOARD_STAGES),$(call board_check,$(s))$(newline))
+	@echo "stages 2 and 3 on the board: their screens and iterations match the host's, also after keys"
 
 # The gate of a release on the board, and its stamp (tools/release.py).
 release-check:
 	$(PYTHON) tools/release.py check $(BOARDLINK)
 
-# A release (docs/RELEASE.md): stage 2 for the MEGA65, under the
+# A release (docs/RELEASE.md): stage 3 for the MEGA65, under the
 # monitor, as nice_mandelbrot_MAJOR.MINOR.bin, a long name, which the
 # monitor's load takes from NiceMonMEGA65 V2.1 on. The release workflow
 # runs it with VERSION set to the tag, after the tests.
 DIST      = build/dist
 DIST_FILE = $(DIST)/nice_mandelbrot_$(patsubst V%,%,$(VERSION)).bin
-dist: build/mega65/stage2.bin
+dist: build/mega65/stage3.bin
 	rm -rf $(DIST)
 	mkdir -p $(DIST)
 	cp $< $(DIST_FILE)

@@ -84,4 +84,36 @@ static inline uint32_t mandel_cell2(int top, int bottom, int max)
                        GLYPH_HALF);
 }
 
+// Stage 3: eight points per cell, two across and four down, each
+// 8x8 pixels, square, with the glyphs of the octants at codes
+// GLYPH_OCTANT to 0xFF. view.h places the points.
+//
+// Point i of a cell, i = 2 * row + column, row-major from the top
+// left, is bit 7 - i of the cell's pattern, and a set bit is drawn in
+// the foreground color. A cell has only two colors: the most frequent
+// color of its points, and the most frequent of the others, each the
+// first in the order of the points when two are as frequent. Each
+// point of a third color is drawn in the one of the two that is
+// nearer in RGB, the first of the two when they are as near. The
+// pattern and its inverse, with the colors swapped, look the same,
+// so the top left point is always in the foreground: bit 7 is set,
+// and the code is the pattern, 0x80 to 0xFF. Codes 0x00 to 0x7F keep
+// the character ROM's ASCII, for the label.
+#define COLS3 160
+#define ROWS3 100
+#define GLYPH_OCTANT 0x80
+
+// The screen word of a cell whose points have the counts count[0..7],
+// of a highest count max.
+uint32_t mandel_cell3(const int count[8], int max);
+
+// Row r, 0 to 31, of the glyph of code, GLYPH_OCTANT to 0xFF: its two
+// halves, 8 pixels each, set where the code's points in that row are.
+static inline uint32_t mandel_glyph3(unsigned code, int r)
+{
+    unsigned bits = code >> (6 - 2 * (r / 8)) & 3;
+
+    return (bits & 2 ? 0xFF00u : 0) | (bits & 1 ? 0x00FFu : 0);
+}
+
 #endif

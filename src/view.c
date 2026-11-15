@@ -1,5 +1,5 @@
 /***************************************************************
- * view.c: the view of stage 2, and the keys that move it.
+ * view.c: the view of stages 2 and 3, and the keys that move it.
  *
  * The view stays inside the square of -4 to 4 on both axes. There
  * |c| < 8, so |c|^2 and x*x + y*y stay below 64, the range of the
@@ -15,8 +15,6 @@
 
 #define LIMIT    FIX(4, 1)
 #define MIN_STEP 2
-// The widest view, COLS points, fits the square.
-#define MAX_STEP (2 * LIMIT / COLS)
 
 static int32_t clamp(int32_t x, int32_t lo, int32_t hi)
 {
@@ -26,22 +24,29 @@ static int32_t clamp(int32_t x, int32_t lo, int32_t hi)
 // Keeps the view in the square, and sets the highest count.
 static void fit(struct view *v)
 {
-    int32_t half_height = ROWS2 * v->step / 2;
+    int32_t half_height = v->rows * v->step / 2;
 
-    v->re0 = clamp(v->re0, -LIMIT, LIMIT - COLS * v->step);
+    v->re0 = clamp(v->re0, -LIMIT, LIMIT - v->cols * v->step);
     v->im0 = clamp(v->im0, -LIMIT + half_height, LIMIT - half_height);
     v->max_iter = MAX_ITER
                 + (v->level > 0 ? v->level * VIEW_ITER_PER_LEVEL : 0);
 }
 
-void view_reset(struct view *v)
+static void reset(struct view *v)
 {
     v->re0 = RE_MIN;
     v->im0 = 0;
-    v->step = RE_STEP;
+    v->step = FIX(3, v->cols);
     v->level = 0;
     v->seq = 0;
     fit(v);
+}
+
+void view_init(struct view *v, int cols, int rows)
+{
+    v->cols = cols;
+    v->rows = rows;
+    reset(v);
 }
 
 // Pans by dx points to the right and dy points up.
@@ -51,22 +56,26 @@ static void pan(struct view *v, int dx, int dy)
     v->im0 += dy * v->step;
 }
 
-// The middle of the columns, re0 + COLS / 2 * step, stays where it is.
+// The middle of the columns, re0 + cols / 2 * step, stays where it is.
 // The step is rounded down when it is halved.
 static void zoom(struct view *v, int32_t step)
 {
-    v->re0 += COLS / 2 * (v->step - step);
+    v->re0 += v->cols / 2 * (v->step - step);
     v->step = step;
 }
 
 static int command(struct view *v, int byte)
 {
+    int pan_by = v->cols / 10;
+    // The widest view, cols points, fits the square.
+    int32_t max_step = 2 * LIMIT / v->cols;
+
     switch (byte)
     {
-    case 'A': pan(v, 0, VIEW_PAN); break;
-    case 'B': pan(v, 0, -VIEW_PAN); break;
-    case 'C': pan(v, VIEW_PAN, 0); break;
-    case 'D': pan(v, -VIEW_PAN, 0); break;
+    case 'A': pan(v, 0, pan_by); break;
+    case 'B': pan(v, 0, -pan_by); break;
+    case 'C': pan(v, pan_by, 0); break;
+    case 'D': pan(v, -pan_by, 0); break;
     case '+':
     case '=':
         if (v->step / 2 < MIN_STEP)
@@ -76,12 +85,12 @@ static int command(struct view *v, int byte)
         break;
     case '-':
     case '_':
-        if (v->step > MAX_STEP / 2)
+        if (v->step > max_step / 2)
             return VIEW_SAME;
         zoom(v, v->step * 2);
         --v->level;
         break;
-    case '0': view_reset(v); return VIEW_MOVED;
+    case '0': reset(v); return VIEW_MOVED;
     case 'q':
     case 'Q': return VIEW_QUIT;
     default: return VIEW_SAME;

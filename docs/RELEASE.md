@@ -14,7 +14,7 @@ own, not those of nice_cpu or NiceMonMEGA65. Each release's notes name
 the nice_cpu tag it is built with, and the NiceMonMEGA65 release it was
 checked on and needs.
 
-Stage 2 shows the version in the top right corner of the screen,
+Stages 2 and 3 show the version in the top right corner of the screen,
 `nice_mandelbrot V1.0`. A build of a tagged commit shows the tag. Other
 builds show what `git describe` says, such as `V1.0-3-g55970b7`, with
 `-dirty` for a changed tree. The release workflow sets `VERSION` to the
@@ -25,7 +25,7 @@ tag.
 - An annotated tag, whose message is the tag's section of
   [RELEASE_NOTES.md](../RELEASE_NOTES.md).
 - A GitHub release with that section as its text, and one file:
-  `nice_mandelbrot_1.0.bin`, stage 2 for the MEGA65 under
+  `nice_mandelbrot_1.0.bin`, stage 3 for the MEGA65 under
   NiceMonMEGA65's monitor. Its name is a long name, which the
   monitor's `load` takes from the SD card from NiceMonMEGA65 V2.1 on.
 
@@ -86,9 +86,9 @@ on the commit is the same evidence, but run it locally too:
     make release-check ETH=192.168.1.65     # or PORT=/dev/ttyUSB3
 
 This runs `release.py check`: on a clean tree, `make board-test`, which
-runs stage 2 on the board under the monitor, with no keys and after
-the keys of `make test`, and compares its screen, its glyph, and its
-iterations with the host's, as `make test` does in niceemu. The logs
+runs stages 2 and 3 on the board under the monitor, with no keys and
+after the keys of `make test`, and compares their screens, their glyphs,
+and their iterations with the host's, as `make test` does in niceemu. The logs
 are in `build/release/`, and the runs' output and dumps in
 `build/board/`. Then it writes `build/release/stamp.json` with the
 commit, the link, and the NiceMonMEGA65 checkout's `git describe`.

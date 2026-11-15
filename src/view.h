@@ -1,13 +1,14 @@
 /***************************************************************
- * view.h: the part of the complex plane that stage 2 shows, and the
+ * view.h: the part of the complex plane that stages 2 and 3 show, and the
  * keys that move it.
  *
- * The view is COLS x ROWS2 points, square, step apart. Its left edge
- * is re0, and the imaginary axis of its rows is at im0, in the middle.
- * It starts as the whole set, the real part from -2.0 to 1.0, the same
- * points as stage 2 had with fixed constants.
+ * The view is cols x rows points, square, step apart: 80x50 in stage
+ * 2, 160x100 in stage 3. Its left edge is re0, and the imaginary axis
+ * of its rows is at im0, in the middle. It starts as the whole set,
+ * the real part from -2.0 to 1.0, the same points as stage 2 had with
+ * fixed constants.
  *
- *     Left, Right, Up, Down   pan by VIEW_PAN points
+ *     Left, Right, Up, Down   pan by a tenth of the width
  *     + or =                  zoom in, twice, about the middle
  *     - or _                  zoom out, twice
  *     0                       the whole set again
@@ -29,9 +30,6 @@
 #include <stdint.h>
 #include "mandel.h"
 
-// A pan moves the view by this many points.
-#define VIEW_PAN 8
-
 // Each zoom in from the start adds this many to the highest count, so
 // that the border keeps its detail.
 #define VIEW_ITER_PER_LEVEL 64
@@ -41,6 +39,8 @@ struct view
     int32_t re0;        // The real part of the left edge
     int32_t im0;        // The imaginary part of the middle
     int32_t step;       // The distance between points
+    int cols;           // The points across
+    int rows;           // The points down
     int level;          // Zooms in from the start, less zooms out
     int max_iter;       // The highest count, for this level
     int seq;            // The bytes of an escape sequence so far
@@ -51,8 +51,9 @@ struct view
 #define VIEW_SAME  0
 #define VIEW_MOVED 1
 
-// The whole set, with no escape sequence begun.
-void view_reset(struct view *v);
+// The whole set, cols x rows points, with no escape sequence begun.
+// cols is a multiple of 20.
+void view_init(struct view *v, int cols, int rows);
 
 // Takes one byte of the keys. Returns VIEW_MOVED if the view changed,
 // VIEW_QUIT on a quit, and VIEW_SAME otherwise: for a byte of a
@@ -68,7 +69,7 @@ static inline int32_t view_re(const struct view *v, int col)
 // The imaginary part of the points of row row, 0 at the top.
 static inline int32_t view_im(const struct view *v, int row)
 {
-    return v->im0 + (ROWS2 - 1 - 2 * row) * v->step / 2;
+    return v->im0 + (v->rows - 1 - 2 * row) * v->step / 2;
 }
 
 #endif

@@ -148,3 +148,57 @@ uint32_t mandel_color(int count, int max)
         return 0x000;           // In the set: black
     return palette[count % 16];
 }
+
+// The square of the distance in RGB of two 12-bit colors.
+static int distance(uint32_t c1, uint32_t c2)
+{
+    int d = 0;
+
+    for (int shift = 0; shift < 12; shift += 4)
+    {
+        int e = (int) (c1 >> shift & 0xF) - (int) (c2 >> shift & 0xF);
+        d += e * e;
+    }
+    return d;
+}
+
+uint32_t mandel_cell3(const int count[8], int max)
+{
+    uint32_t color[8], fg, bg;
+    int freq[8], first = 0, second = -1;
+    unsigned pattern = 0;
+
+    for (int i = 0; i < 8; ++i)
+        color[i] = mandel_color(count[i], max);
+    for (int i = 0; i < 8; ++i)
+    {
+        freq[i] = 0;
+        for (int j = 0; j < 8; ++j)
+            freq[i] += color[j] == color[i];
+    }
+    for (int i = 1; i < 8; ++i)
+        if (freq[i] > freq[first])
+            first = i;
+    for (int i = 0; i < 8; ++i)
+        if (color[i] != color[first] && (second < 0 || freq[i] > freq[second]))
+            second = i;
+
+    // fg and bg are the two colors; the points in fg make the pattern.
+    fg = color[first];
+    bg = second < 0 ? fg : color[second];
+    for (int i = 0; i < 8; ++i)
+        if (color[i] == fg
+            || (color[i] != bg && distance(color[i], fg) <= distance(color[i], bg)))
+            pattern |= 0x80u >> i;
+
+    // The top left point in the foreground.
+    if (!(pattern & 0x80u))
+    {
+        uint32_t t = fg;
+
+        fg = bg;
+        bg = t;
+        pattern ^= 0xFFu;
+    }
+    return mandel_word(bg, fg, pattern);
+}

@@ -88,7 +88,7 @@ int main(void)
     struct view v;
     int r;
 
-    view_reset(&v);
+    view_init(&v, COLS, ROWS2);
     font_init();
     do
     {

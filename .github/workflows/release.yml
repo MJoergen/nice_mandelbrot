@@ -1,6 +1,6 @@
 name: release
 
-# The GitHub release of a tag Vmajor.minor, with stage 2 for the MEGA65,
+# The GitHub release of a tag Vmajor.minor, with stage 3 for the MEGA65,
 # nice_mandelbrot_MAJOR.MINOR.bin, as its file. The tag comes from
 # tools/release.py tag (docs/RELEASE.md step 6), after test.yml passed
 # on its commit and the stamp of the board, so this workflow runs only
