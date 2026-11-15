@@ -10,6 +10,33 @@ A release is named `Vmajor.minor`, and its file is
 Each section names the nice_cpu tag the release is built with, and the
 NiceMonMEGA65 release it was checked on.
 
+## V1.1 (2026-11-15)
+
+The Mandelbrot set at 160×100, twice as fine in each direction as V1.0,
+with the same keys.
+
+**What it needs**
+
+- The monitor of NiceMonMEGA65 V2.1 or later, as V1.0. Copy
+  `nice_mandelbrot_1.1.bin` into the folder `NICE` of the SD card, and
+  type `load nice_mandelbrot_1.1.bin`, then `r`.
+
+**What changed**
+
+- The file is stage 3: 160×100 points, each 8×8 pixels, square, eight
+  to a character cell, drawn with a font of the 128 octants in the font
+  RAM ([#1](https://github.com/MJoergen/nice_mandelbrot/issues/1)).
+  The whole set takes some 0.16 s on the MEGA65 (10.6 million
+  instructions).
+- A cell has only two colors. Where its eight points have more, near
+  the border of the set, the others are drawn in the nearer of the two,
+  so the picture is approximate there.
+- A pan moves 16 points, still a tenth of the width. Each zoom shows the
+  same part of the plane as in V1.0, and the deepest is 18 zooms in.
+
+Built with nice_cpu V2.1. Checked on the MEGA65 under NiceMonMEGA65
+V2.1.
+
 ## V1.0 (2026-11-15)
 
 The first release: the Mandelbrot set at 80×50 on the MEGA65, with pan
