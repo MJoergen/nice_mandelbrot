@@ -10,7 +10,7 @@ A release is named `Vmajor.minor`, and its file is
 Each section names the nice_cpu tag the release is built with, and the
 NiceMonMEGA65 release it was checked on.
 
-## V1.0 (unreleased)
+## V1.0 (2026-11-15)
 
 The first release: the Mandelbrot set at 80×50 on the MEGA65, with pan
 and zoom.
@@ -38,4 +38,4 @@ Stages 3 and 4, at 160×50 and 160×100
 a later release.
 
 Built with nice_cpu V2.1. Checked on the MEGA65 under NiceMonMEGA65
-V?.? (the monitor's banner at step 4 of docs/RELEASE.md).
+V2.1.
