@@ -39,3 +39,6 @@ a later release.
 
 Built with nice_cpu V2.1. Checked on the MEGA65 under NiceMonMEGA65
 V2.1.
+
+After the release, it also ran on the Nexys4DDR under NiceMonMEGA65
+V2.1, from the SD card.
