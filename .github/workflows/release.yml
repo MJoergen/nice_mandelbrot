@@ -1,0 +1,42 @@
+name: release
+
+# The GitHub release of a tag Vmajor.minor, with stage 2 for the MEGA65,
+# nice_mandelbrot_MAJOR.MINOR.bin, as its file. The tag comes from
+# tools/release.py tag (docs/RELEASE.md step 6), after test.yml passed
+# on its commit and the stamp of the board, so this workflow runs only
+# what the file needs: the tests, with the tag as the version.
+on:
+  push:
+    tags: ["V[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+      # Fails unless RELEASE_NOTES.md has a dated section for the tag.
+      # Its first line is the title of the release, and the rest the text.
+      - name: The section of the release notes
+        run: python3 tools/release.py section "$GITHUB_REF_NAME" > "$RUNNER_TEMP/section.md"
+      - name: Install clang, lld, and llvm
+        run: sudo apt-get update && sudo apt-get install -y clang lld llvm
+      - name: Fetch nice_cpu and niceemu
+        run: make deps
+      - name: Test
+        run: make test
+      - name: The file
+        run: make dist
+      - name: The GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tail -n +2 "$RUNNER_TEMP/section.md" > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --verify-tag \
+            --title "$(head -n 1 "$RUNNER_TEMP/section.md")" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            "build/dist/nice_mandelbrot_${GITHUB_REF_NAME#V}.bin"

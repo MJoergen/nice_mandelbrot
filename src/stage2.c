@@ -4,9 +4,11 @@
  *
  * The program copies the character ROM into the font RAM, writes the
  * upper half block over code GLYPH_HALF, 0x80, which is blank in the
- * ROM, and shows the font RAM (nice_cpu's DEVICES.md §1.8). Each cell
+ * ROM, and shows the font RAM (nice_cpu's SYSTEM.md §1.8). Each cell
  * is that glyph, in the top point's color, on the bottom point's
- * color. A point is then 16x16 pixels, square.
+ * color. A point is then 16x16 pixels, square. The top right corner
+ * has the label of label.h, the name and the version, in the ROM's
+ * letters.
  *
  * The picture fills in a row of cells, two rows of points, at a time.
  * After each row the program reads the keys that wait. On a key that
@@ -26,6 +28,7 @@
 #include <stdint.h>
 #include <nice.h>
 #include "mandel.h"
+#include "label.h"
 #include "report.h"
 #include "view.h"
 
@@ -66,7 +69,7 @@ static int draw(struct view *v)
 
             iterations += (unsigned long) (top + bottom);
             nice_poke(NICE_SCREEN + (unsigned) (COLS * row + col),
-                      mandel_cell2(top, bottom, max));
+                      label_cell(row, col, mandel_cell2(top, bottom, max)));
         }
         while ((c = nice_pollc()) >= 0)
         {

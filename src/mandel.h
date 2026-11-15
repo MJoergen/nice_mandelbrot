@@ -2,7 +2,7 @@
  * mandel.h: the Mandelbrot iteration, in 32-bit fixed point.
  *
  * The same code builds for NICE, where each product is one of the
- * math unit (nice_cpu's DEVICES.md §2), and for the host, where it is
+ * math unit (nice_cpu's SYSTEM.md §2), and for the host, where it is
  * a 64-bit product in C. Both give the same counts.
  *
  * Copyright (c) 2026 Michael Jørgensen. MIT license (see LICENSE).
@@ -58,7 +58,7 @@ static inline int32_t mandel_im(int row, int rows, int32_t step)
 uint32_t mandel_color(int count, int max);
 
 // A screen word: the background in bits 31..20, the foreground in bits
-// 19..8, and the character in bits 7..0 (nice_cpu's DEVICES.md §1.1).
+// 19..8, and the character in bits 7..0 (nice_cpu's SYSTEM.md §1.1).
 static inline uint32_t mandel_word(uint32_t bg, uint32_t fg, unsigned ch)
 {
     return bg << 20 | fg << 8 | ch;

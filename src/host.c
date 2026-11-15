@@ -5,7 +5,8 @@
  *
  * With no mode it prints the points in characters, by count. --words
  * prints the 2000 screen words that the NICE build writes, one per
- * line, in hex, and --count the total of the iterations.
+ * line, in hex, and --count the total of the iterations. In stage 2
+ * both have the label of label.h in the top right corner.
  *
  * STAGE is 1, 80x25, or 2, 80x50. --keys, for stage 2 only, applies
  * the bytes of KEYS to the view first (view.h), as the NICE build does
@@ -19,6 +20,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "label.h"
 #include "mandel.h"
 #include "view.h"
 
@@ -105,13 +107,15 @@ int main(int argc, char *argv[])
                 int32_t a = view_re(&v, col);
                 int top = mandel_count(a, b_top, v.max_iter);
                 int bottom = mandel_count(a, b_bottom, v.max_iter);
+                char label = label_char(row, col);
 
                 iterations += (unsigned long) (top + bottom);
                 if (words)
                     printf("%08x\n",
-                           (unsigned) mandel_cell2(top, bottom, v.max_iter));
-                lines[0][col] = shade(top, v.max_iter);
-                lines[1][col] = shade(bottom, v.max_iter);
+                           (unsigned) label_cell(row, col,
+                                      mandel_cell2(top, bottom, v.max_iter)));
+                lines[0][col] = label ? label : shade(top, v.max_iter);
+                lines[1][col] = label ? ' ' : shade(bottom, v.max_iter);
             }
             lines[0][COLS] = lines[1][COLS] = 0;
             if (!words && !count_only)
