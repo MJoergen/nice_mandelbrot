@@ -32,7 +32,7 @@ int main(void)
 
         for (int col = 0; col < COLS; ++col)
         {
-            int count = mandel_count(mandel_re(col), b);
+            int count = mandel_count(mandel_re(col), b, MAX_ITER);
 
             iterations += (unsigned long) count;
             nice_poke(NICE_SCREEN + (unsigned) (COLS * row + col),

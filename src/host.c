@@ -1,13 +1,18 @@
 /***************************************************************
  * host.c: stages 1 and 2 on the host, for checking the NICE builds.
  *
- *     mandel_host STAGE          the points in characters, by count
- *     mandel_host STAGE --words  the 2000 screen words that the NICE
- *                                build writes, one per line, in hex
- *     mandel_host STAGE --count  the total of the iterations
+ *     mandel_host STAGE [--keys KEYS] [--words | --count]
  *
- * STAGE is 1, 80x25, or 2, 80x50. The counts are those of the NICE
- * builds, as mandel.c computes the same products in C.
+ * With no mode it prints the points in characters, by count. --words
+ * prints the 2000 screen words that the NICE build writes, one per
+ * line, in hex, and --count the total of the iterations.
+ *
+ * STAGE is 1, 80x25, or 2, 80x50. --keys, for stage 2 only, applies
+ * the bytes of KEYS to the view first (view.h), as the NICE build does
+ * when they are its input: the picture is that of the view after the
+ * last key. A q in KEYS is an error, as the NICE build then clears the
+ * screen. The counts are those of the NICE builds, as mandel.c computes
+ * the same products in C.
  *
  * Copyright (c) 2026 Michael Jørgensen. MIT license (see LICENSE).
  ***************************************************************/
@@ -15,27 +20,42 @@
 #include <stdio.h>
 #include <string.h>
 #include "mandel.h"
+#include "view.h"
 
 static const char shades[] = " .:-=+*%@";
 
-static char shade(int count)
+static char shade(int count, int max)
 {
-    return count >= MAX_ITER ? '#' : shades[count % (sizeof shades - 1)];
+    return count >= max ? '#' : shades[count % (sizeof shades - 1)];
+}
+
+static int usage(const char *name)
+{
+    fprintf(stderr, "usage: %s 1|2 [--keys KEYS] [--words | --count]\n",
+            name);
+    return 1;
 }
 
 int main(int argc, char *argv[])
 {
     const char *stage = argc > 1 ? argv[1] : "";
-    const char *mode = argc > 2 ? argv[2] : "";
-    int words = !strcmp(mode, "--words");
-    int count_only = !strcmp(mode, "--count");
+    const char *keys = NULL;
+    int words = 0, count_only = 0;
     unsigned long iterations = 0;
 
-    if ((strcmp(stage, "1") && strcmp(stage, "2")) || argc > 3
-        || (*mode && !words && !count_only))
+    if (strcmp(stage, "1") && strcmp(stage, "2"))
+        return usage(argv[0]);
+    for (int i = 2; i < argc; ++i)
     {
-        fprintf(stderr, "usage: %s 1|2 [--words | --count]\n", argv[0]);
-        return 1;
+        if (!strcmp(argv[i], "--words") && !count_only)
+            words = 1;
+        else if (!strcmp(argv[i], "--count") && !words)
+            count_only = 1;
+        else if (!strcmp(argv[i], "--keys") && i + 1 < argc && !keys
+                 && *stage == '2')
+            keys = argv[++i];
+        else
+            return usage(argv[0]);
     }
 
     if (*stage == '1')
@@ -46,13 +66,13 @@ int main(int argc, char *argv[])
 
             for (int col = 0; col < COLS; ++col)
             {
-                int count = mandel_count(mandel_re(col), b);
+                int count = mandel_count(mandel_re(col), b, MAX_ITER);
 
                 iterations += (unsigned long) count;
                 if (words)
                     printf("%08x\n", (unsigned) mandel_cell1(count));
                 else if (!count_only)
-                    putchar(shade(count));
+                    putchar(shade(count, MAX_ITER));
             }
             if (!words && !count_only)
                 putchar('\n');
@@ -60,25 +80,38 @@ int main(int argc, char *argv[])
     }
     else
     {
+        struct view v;
+
+        view_reset(&v);
+        for (const char *k = keys ? keys : ""; *k; ++k)
+        {
+            if (view_key(&v, (unsigned char) *k) == VIEW_QUIT)
+            {
+                fprintf(stderr, "%s: the keys quit\n", argv[0]);
+                return 1;
+            }
+        }
+
         // A row of cells is two rows of points: the characters print
         // them as two lines.
         for (int row = 0; row < ROWS2 / 2; ++row)
         {
-            int32_t b_top = mandel_im(2 * row, ROWS2, STEP2);
-            int32_t b_bottom = mandel_im(2 * row + 1, ROWS2, STEP2);
+            int32_t b_top = view_im(&v, 2 * row);
+            int32_t b_bottom = view_im(&v, 2 * row + 1);
             char lines[2][COLS + 1];
 
             for (int col = 0; col < COLS; ++col)
             {
-                int32_t a = mandel_re(col);
-                int top = mandel_count(a, b_top);
-                int bottom = mandel_count(a, b_bottom);
+                int32_t a = view_re(&v, col);
+                int top = mandel_count(a, b_top, v.max_iter);
+                int bottom = mandel_count(a, b_bottom, v.max_iter);
 
                 iterations += (unsigned long) (top + bottom);
                 if (words)
-                    printf("%08x\n", (unsigned) mandel_cell2(top, bottom));
-                lines[0][col] = shade(top);
-                lines[1][col] = shade(bottom);
+                    printf("%08x\n",
+                           (unsigned) mandel_cell2(top, bottom, v.max_iter));
+                lines[0][col] = shade(top, v.max_iter);
+                lines[1][col] = shade(bottom, v.max_iter);
             }
             lines[0][COLS] = lines[1][COLS] = 0;
             if (!words && !count_only)

@@ -47,12 +47,12 @@ static int32_t mpu_a, mpu_b;
 
 #endif
 
-int mandel_count(int32_t a, int32_t b)
+int mandel_count(int32_t a, int32_t b, int max)
 {
     int32_t x = 0, y = 0;
     int n;
 
-    for (n = 0; n < MAX_ITER; ++n)
+    for (n = 0; n < max; ++n)
     {
         SET_A(x);
         SET_B(x);
@@ -78,9 +78,9 @@ static const uint16_t palette[16] =
     0xFFE, 0xFEA, 0xFC6, 0xFA3, 0xE82, 0xC51, 0x931, 0x624
 };
 
-uint32_t mandel_color(int count)
+uint32_t mandel_color(int count, int max)
 {
-    if (count >= MAX_ITER)
+    if (count >= max)
         return 0x000;           // In the set: black
     return palette[count % 16];
 }

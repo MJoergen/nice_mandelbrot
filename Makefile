@@ -20,18 +20,20 @@ MONFLAGS  = $(NICEFLAGS) --monitor
 HOSTFLAGS = -O2 -W -Wall -Wextra
 
 STAGES  = 1 2
-CORE    = src/mandel.c
+CORE    = src/mandel.c src/view.c
 NICELIB = src/report.c
-HEADERS = src/mandel.h src/report.h Makefile
+HEADERS = src/mandel.h src/view.h src/report.h Makefile
 
-.PHONY: help all test run screenshot clean
+.PHONY: help all test run explore screenshot clean
 .SECONDARY:
 help:
 	@echo "nice_mandelbrot: the Mandelbrot set on the NICE CPU"
 	@echo ""
 	@echo "  make all     build stages 1 (80x25) and 2 (80x50) for niceemu, for the MEGA65, and for the host"
-	@echo "  make test    run both stages in niceemu, and compare their screens with the host's"
+	@echo "  make test    run both stages in niceemu, and compare their screens with the host's,"
+	@echo "               also after a series of keys in stage 2"
 	@echo "  make run     run stage STAGE (default 2) in niceemu, and print its screen in color"
+	@echo "  make explore run stage 2 in niceemu's window, to pan and zoom with the keys"
 	@echo "  make screenshot  draw stage 2's screen in niceemu as docs/stage2.png (needs Pillow)"
 	@echo "  make clean   remove build/"
 	@echo ""
@@ -91,10 +93,30 @@ build/test/glyph.words:
 	@for r in $$(seq 16); do echo 00000000; done >> $@
 	@echo fffe0000 >> $@
 
+# Stage 2 after a series of keys: pan left and up (both forms of the
+# cursor keys), zoom in four times, out twice, and in again (both keys
+# for each), and F9 between, which does nothing. The screen is that of the view
+# after the last key, as each key that moves the view starts a new
+# picture.
+KEYS = \033[D==\033[A\033OA+=-\033[20~_=
+
+build/test/keys_stage%.out: build/nice/stage%.bin
+	@mkdir -p $(@D)
+	printf '$(KEYS)' | $(NICEEMU) $(DUMPS) $< > $@
+
+build/test/keys_mon_stage%.out: build/test/mon_stage%.bin
+	@mkdir -p $(@D)
+	printf '$(KEYS)' | $(NICEEMU) $(DUMPS) $< > $@
+
+build/test/keys_host%.words: build/host/mandel_host
+	@mkdir -p $(@D)
+	$< $* --keys "$$(printf '$(KEYS)')" --words > $@
+
 # Each build's screen must be the host's, word for word, and its count
 # of iterations the host's. Stage 2 must also have its glyph shown.
 test: $(foreach s,$(STAGES),build/test/stage$(s).out build/test/mon_stage$(s).out \
-      build/test/host$(s).words) build/test/glyph.words
+      build/test/host$(s).words) build/test/glyph.words \
+      build/test/keys_stage2.out build/test/keys_mon_stage2.out build/test/keys_host2.words
 	@for s in $(STAGES); do \
 	  for out in build/test/stage$$s.out build/test/mon_stage$$s.out; do \
 	    grep -E '^ff' $$out | cut -d: -f2 | tr ' ' '\n' | grep . > $$out.words; \
@@ -105,13 +127,27 @@ test: $(foreach s,$(STAGES),build/test/stage$(s).out build/test/mon_stage$(s).ou
 	  done; \
 	  grep -A4 '^nice_mandelbrot' build/test/stage$$s.out; \
 	done
-	@echo "stages 1 and 2: both builds' screens and iterations match the host's"
+	@for out in build/test/keys_stage2.out build/test/keys_mon_stage2.out; do \
+	  grep -E '^ff' $$out | cut -d: -f2 | tr ' ' '\n' | grep . > $$out.words; \
+	  head -2000 $$out.words | cmp - build/test/keys_host2.words || exit 1; \
+	  [ "$$(grep '^iterations' $$out | tail -1)" = \
+	    "iterations   $$(build/host/mandel_host 2 --keys "$$(printf '$(KEYS)')" --count)" ] || \
+	    { echo "$$out: the iterations differ from the host's"; exit 1; }; \
+	done
+	@echo "stage 2 after keys:"
+	@grep -A4 '^nice_mandelbrot' build/test/keys_stage2.out | tail -5
+	@echo "stages 1 and 2: both builds' screens and iterations match the host's, also after keys"
 
 run: build/nice/stage$(STAGE).bin
 	$(NICEEMU) --color $< < /dev/null
 
 # The picture of the README: stage 2's screen in niceemu, 1280x800.
 screenshot: docs/stage2.png
+
+# Stage 2 in a window, with the keys typed into it. Needs a niceemu
+# built with -Dwindow.
+explore: build/nice/stage2.bin
+	$(NICEEMU) --window $<
 
 docs/stage2.png: build/test/stage2.out tools/screenshot.py
 	@mkdir -p $(@D)

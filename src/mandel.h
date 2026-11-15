@@ -14,27 +14,31 @@
 #include <stdint.h>
 
 // The numbers have FRAC fraction bits, so they run from -64 to 64.
-// Before an escape |z| <= 2, so after one more iteration |z| <= 4 + |c|,
-// and x*x + y*y stays below 64 for any c of the view.
+// Before an escape |z| <= 2, so after one more iteration |z| <= 4 + |c|.
+// For |c| <= 2 that is 6, and x*x + y*y stays below 64. A c with
+// 2 < |c| < 8 escapes at the first test, where z = c and
+// x*x + y*y = |c|^2 < 64. So any c with |c| < 8 is safe; the view of
+// stage 2 (view.c) keeps |re c| and |im c| at most 4.
 #define FRAC 25
 #define FIX(num, den) ((int32_t) ((int64_t) (num) * (1 << FRAC) / (den)))
 #define FOUR FIX(4, 1)
 
-// The highest count. A point that reaches it is in the set.
+// The highest count of stage 1, and of stage 2 at the start. A point
+// that reaches the highest count is in the set.
 #define MAX_ITER 256
 
 // The view: 80 points across, the real part from -2.0 to 1.0, each
 // point at the center of its pixel. The imaginary axis is in the middle
-// of the rows, and its step is chosen by the stage: twice the real one
-// in stage 1, where a point is a whole cell, 16x32 pixels, and the same
-// in stage 2, where a point is half a cell, 16x16.
+// of the rows. In stage 1, where a point is a whole cell, 16x32 pixels,
+// the imaginary step is twice the real one. Stage 2 starts with this
+// view, with square points (view.h).
 #define COLS 80
 #define RE_MIN FIX(-2, 1)
 #define RE_STEP FIX(3, COLS)
 
 // The number of iterations of z -> z*z + c from z = 0 before |z| > 2,
-// or MAX_ITER, for c = a + ib.
-int mandel_count(int32_t a, int32_t b);
+// or max, for c = a + ib.
+int mandel_count(int32_t a, int32_t b, int max);
 
 // The real part of the points of column col.
 static inline int32_t mandel_re(int col)
@@ -49,8 +53,9 @@ static inline int32_t mandel_im(int row, int rows, int32_t step)
     return (rows - 1 - 2 * row) * step / 2;
 }
 
-// The color of a count, as 12 bits: red, green, blue.
-uint32_t mandel_color(int count);
+// The color of a count, of a highest count max, as 12 bits: red,
+// green, blue.
+uint32_t mandel_color(int count, int max);
 
 // A screen word: the background in bits 31..20, the foreground in bits
 // 19..8, and the character in bits 7..0 (nice_cpu's DEVICES.md §1.1).
@@ -64,18 +69,19 @@ static inline uint32_t mandel_word(uint32_t bg, uint32_t fg, unsigned ch)
 #define STEP1 (2 * RE_STEP)
 static inline uint32_t mandel_cell1(int count)
 {
-    uint32_t color = mandel_color(count);
+    uint32_t color = mandel_color(count, MAX_ITER);
     return mandel_word(color, color, ' ');
 }
 
 // Stage 2: two points per cell, the upper half block of GLYPH_HALF in
-// the top point's color, on the bottom point's color.
+// the top point's color, on the bottom point's color. Its points are
+// square, and view.h places them.
 #define ROWS2 50
-#define STEP2 RE_STEP
 #define GLYPH_HALF 0x80
-static inline uint32_t mandel_cell2(int top, int bottom)
+static inline uint32_t mandel_cell2(int top, int bottom, int max)
 {
-    return mandel_word(mandel_color(bottom), mandel_color(top), GLYPH_HALF);
+    return mandel_word(mandel_color(bottom, max), mandel_color(top, max),
+                       GLYPH_HALF);
 }
 
 #endif

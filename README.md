@@ -129,15 +129,48 @@ default (`NICE_CPU=DIR`), with niceemu built in it
     make all     # build/nice/stageN.bin for niceemu, build/mega65/stageN.bin
                  # for the MEGA65's monitor at 0x8000, build/host/mandel_host
     make test    # both NICE builds of each stage in niceemu, their screens
-                 # compared with the host's
+                 # compared with the host's, also after a series of keys
     make run     # stage 2 in niceemu, its screen printed in color (STAGE=1 for stage 1)
+    make explore # stage 2 in niceemu's window, to pan and zoom (niceemu built with -Dwindow)
     make screenshot  # docs/stage2.png, stage 2's screen in niceemu (needs Pillow)
 
 Each program draws the picture a row of cells at a time, then writes
 the iterations, cycles, instructions, and microseconds it took to the
-console's line, and waits for a key. On a key it clears the screen,
-shows the character ROM again, and returns. At the end of the console's
-input, as in niceemu, it returns at once.
+console's line, and waits for a key. In stage 1, any key clears the
+screen and returns. At the end of the console's input, as in niceemu,
+it returns at once.
+
+### Pan and zoom in stage 2
+
+Stage 2 takes these keys:
+
+| Key | Action |
+|---|---|
+| ← → ↑ ↓ | Pan by 8 points, a tenth of the width |
+| `+` or `=` | Zoom in, twice, about the middle |
+| `-` or `_` | Zoom out, twice |
+| `0` | The whole set again |
+| `q` | Show the character ROM again, clear the screen, and return |
+
+The cursor keys are the xterm sequences `ESC [ A` to `ESC [ D`, which
+niceemu's window and the MEGA65's keyboard send, and also `ESC O A` to
+`ESC O D`. Other sequences, such as those of the function keys, do
+nothing. After each row of cells the program reads the keys that wait,
+and a key that moves the view starts the new picture at once. So a key
+held down does not queue up pictures, and only whole pictures write
+their figures.
+
+Each zoom in halves the step between points, from 3/80 at the start
+down to 2⁻²⁴, after 19 zooms, where the points are a step of the fixed
+point apart. Each also adds 64 to the highest count, 256 at the start,
+so that the border of the set keeps its detail: 1472 at the deepest. One
+zoom out from the start is allowed, to a width of 6, and the view stays
+inside −4 to 4 on both axes, where the fixed point cannot overflow
+(`src/mandel.h`).
+
+Deep views take longer. A view all inside the set at the deepest zoom
+is 5.9 million iterations, some 4 s on the board, but a key still takes
+effect after the row of cells being drawn, some 0.2 s.
 
 The files:
 
@@ -145,26 +178,30 @@ The files:
   fraction bits, and the colors. On NICE each product is one of the math
   unit, through `nice_poke` and `nice_peek`; on the host it is a 64-bit
   product in C, with the same bits.
+- `src/view.c`, `src/view.h`: the view of stage 2, and the keys that
+  pan and zoom it, for NICE and for the host.
 - `src/stage1.c`, `src/stage2.c`: stages 1 and 2, for NICE.
 - `src/report.c`, `src/report.h`: the figures of a run, written to the
   console's register, so that under the monitor they go to the line and
   not over the picture.
 - `src/host.c`: stages 1 and 2 on the host, as characters, or as the
-  screen words of the NICE builds, for `make test`.
+  screen words of the NICE builds, for `make test`. `--keys` applies a
+  series of keys to the view of stage 2 first.
 - `tools/screenshot.py`: stage 2's screen words as a PNG, for
   `make screenshot`.
 
 ## Status
 
-Stages 1 and 2 are written and run in niceemu. They are not yet run on
+Stages 1 and 2 are written and run in niceemu, stage 2 with pan and
+zoom. They are not yet run on
 the board. In niceemu:
 
 | Stage | Iterations | Per point | Instructions | At 54 million a second |
 |---|---|---|---|---|
-| 1, 80×25 | 152 085 | 76 | 6 212 940 | ≈ 0.12 s |
-| 2, 80×50 | 297 888 | 74 | 12 157 703 | ≈ 0.23 s |
+| 1, 80×25 | 152 085 | 76 | 6 077 411 | ≈ 0.11 s |
+| 2, 80×50 | 297 888 | 74 | 11 917 348 | ≈ 0.22 s |
 
-That is about 41 instructions per iteration. The rate of 54 million
+That is about 40 instructions per iteration. The rate of 54 million
 instructions a second on the MEGA65 is the one nice_chess measures.
 Stage 2 also copies the character ROM into the font RAM before it
 starts the clock, 8192 words.
