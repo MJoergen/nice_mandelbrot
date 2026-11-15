@@ -15,6 +15,23 @@
  * writes, not six. 2*x*y is shifted by one bit less, which keeps its
  * last bit. On the host the same products are computed in C.
  *
+ * Before the loop, a point in the main cardioid or in the period-2
+ * bulb, the disc left of it, is given max at once. Those points never
+ * escape, and they are most of the points that reach max, so the test
+ * saves most of the time of a view of the whole set. With q =
+ * (a - 1/4)^2 + b^2 the cardioid is q (q + a - 1/4) <= b^2 / 4, and the
+ * bulb is (a + 1)^2 + b^2 <= 1/16. Each is tested only inside a box
+ * around it, where the products cannot overflow.
+ *
+ * Near the cusp of the cardioid, at a = 1/4, all of q, a - 1/4, and b
+ * are tiny, and their products round to 0, so a point just outside
+ * would pass a test of <=. The cardioid's test therefore has a margin
+ * of 4 in the last bit: such points are iterated, as are the points
+ * just inside, and each point that passes never reaches |z| > 2 in the
+ * fixed point either (checked on the host over dense grids at the
+ * cusp, at the pinch at a = -3/4, at the edges of the bulb, and at
+ * random points of both boxes, with 1472 iterations).
+ *
  * Copyright (c) 2026 Michael Jørgensen. MIT license (see LICENSE).
  ***************************************************************/
 
@@ -47,10 +64,57 @@ static int32_t mpu_a, mpu_b;
 
 #endif
 
+// The boxes around the cardioid, a from -3/4 to 3/8 and |b| <= 2/3,
+// and around the bulb, a from -5/4 to -3/4 and |b| <= 1/4.
+#define CARD_A_MIN FIX(-3, 4)
+#define CARD_A_MAX FIX(3, 8)
+#define CARD_B_MAX FIX(2, 3)
+#define BULB_A_MIN FIX(-5, 4)
+#define BULB_B_MAX FIX(1, 4)
+#define CARD_MARGIN 4
+
+// Whether c = a + ib is in the main cardioid or the period-2 bulb.
+static int in_main(int32_t a, int32_t b)
+{
+    int32_t abs_b = b < 0 ? -b : b;
+
+    if (a >= CARD_A_MIN && a <= CARD_A_MAX && abs_b <= CARD_B_MAX)
+    {
+        int32_t x = a - FIX(1, 4);
+
+        SET_A(x);
+        SET_B(x);
+        int32_t x2 = PROD(FRAC);
+        SET_A(b);
+        SET_B(b);
+        int32_t b2 = PROD(FRAC);
+        int32_t q = x2 + b2;
+
+        SET_A(q);
+        SET_B(q + x);
+        return PROD(FRAC) < (b2 >> 2) - CARD_MARGIN;
+    }
+    if (a >= BULB_A_MIN && a < CARD_A_MIN && abs_b <= BULB_B_MAX)
+    {
+        int32_t x = a + FIX(1, 1);
+
+        SET_A(x);
+        SET_B(x);
+        int32_t x2 = PROD(FRAC);
+        SET_A(b);
+        SET_B(b);
+        return x2 + PROD(FRAC) <= FIX(1, 16);
+    }
+    return 0;
+}
+
 int mandel_count(int32_t a, int32_t b, int max)
 {
     int32_t x = 0, y = 0;
     int n;
+
+    if (in_main(a, b))
+        return max;
 
     for (n = 0; n < max; ++n)
     {

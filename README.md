@@ -112,8 +112,10 @@ Notes on the estimate:
 - The time grows linearly with the average count. A zoom near the
   border of the set, with a higher maximum, can take ten times as long.
 - Most of the time goes to the points in the set. A test for the main
-  cardioid and the period-2 bulb, before the loop, skips most of them
-  and about halves the time of the whole view.
+  cardioid and the period-2 bulb, before the loop, skips most of them.
+  That turned out to be more than the half guessed here: the C programs
+  have the test, and run the whole view some 5 times faster (Status,
+  below).
 - Drawing is not counted: 8000 screen writes, and the choice of two
   colors for each of 2000 cells, take a few milliseconds at most.
 - The figures are to be checked against the performance counters
@@ -168,8 +170,10 @@ zoom out from the start is allowed, to a width of 6, and the view stays
 inside −4 to 4 on both axes, where the fixed point cannot overflow
 (`src/mandel.h`).
 
-Deep views take longer. A view all inside the set at the deepest zoom
-is 5.9 million iterations, some 4 s on the board, but a key still takes
+Deep views take longer. The points of the main cardioid and the
+period-2 bulb cost nothing (Status, below), but a view all inside
+another part of the set, such as a small copy of it, at the deepest zoom
+is 5.9 million iterations, some 4 s on the board. A key still takes
 effect after the row of cells being drawn, some 0.2 s.
 
 The files:
@@ -196,13 +200,21 @@ Stages 1 and 2 are written and run in niceemu, stage 2 with pan and
 zoom. They are not yet run on
 the board. In niceemu:
 
-| Stage | Iterations | Per point | Instructions | At 54 million a second |
-|---|---|---|---|---|
-| 1, 80×25 | 152 085 | 76 | 6 077 411 | ≈ 0.11 s |
-| 2, 80×50 | 297 888 | 74 | 11 917 348 | ≈ 0.22 s |
+| Stage | Count | Per point | Instructions | At 54 million a second | Without the test |
+|---|---|---|---|---|---|
+| 1, 80×25 | 152 085 | 76 | 1 252 824 | ≈ 0.023 s | 6 077 411 |
+| 2, 80×50 | 297 888 | 74 | 2 346 235 | ≈ 0.043 s | 11 917 348 |
 
-That is about 40 instructions per iteration. The rate of 54 million
-instructions a second on the MEGA65 is the one nice_chess measures.
+The count is the total of the points' counts, as the programs report it
+under `iterations`: a point in the main cardioid or the period-2 bulb
+counts as 256, though the test before the loop
+(`src/mandel.c`) gives it at once. Without that test the programs run
+about 40 instructions per iteration, and the test makes them some 5
+times faster, with the same picture, word for word. In the view of
+`make test` after the keys, near the border at zoom level 3, it is 15
+times faster: 3 596 627 instructions, from 55 489 637. The rate of 54
+million instructions a second on the MEGA65 is the one nice_chess
+measures.
 Stage 2 also copies the character ROM into the font RAM before it
 starts the clock, 8192 words.
 
