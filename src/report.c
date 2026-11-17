@@ -56,3 +56,9 @@ void report_end(const char *title, unsigned long iterations)
     put_figure("instructions ", instructions);
     put_figure("microseconds ", micros);
 }
+
+void report_line(const char *s)
+{
+    put_str(s);
+    put_str("\n");
+}

@@ -18,4 +18,7 @@ void report_start(void);
 // instructions, and the microseconds since report_start.
 void report_end(const char *title, unsigned long iterations);
 
+// Writes a line of text.
+void report_line(const char *s);
+
 #endif

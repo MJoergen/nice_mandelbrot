@@ -1,5 +1,5 @@
 /***************************************************************
- * view.c: the view of stages 2 and 3, and the keys that move it.
+ * view.c: the view of stages 2 to 4, and the keys that move it.
  *
  * The view stays inside the square of -4 to 4 on both axes. There
  * |c| < 8, so |c|^2 and x*x + y*y stay below 64, the range of the

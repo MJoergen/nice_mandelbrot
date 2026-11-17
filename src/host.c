@@ -1,17 +1,19 @@
 /***************************************************************
- * host.c: stages 1 to 3 on the host, for checking the NICE builds.
+ * host.c: stages 1 to 4 on the host, for checking the NICE builds.
  *
- *     mandel_host STAGE [--keys KEYS] [--words | --count | --glyphs]
+ *     mandel_host STAGE [--keys KEYS] [--words | --count | --setup]
  *
  * With no mode it prints the points in characters, by count. --words
- * prints the 2000 screen words that the NICE build writes, one per
- * line, in hex, and --count the total of the iterations. In stages 2
- * and 3 both have the label of label.h in the top right corner.
- * --glyphs, for stages 2 and 3, prints the words that the NICE build
- * writes to the font RAM from code 0x80, and then its font base.
+ * prints the screen words that the NICE build writes, one per line, in
+ * hex, 2000 in stages 1 to 3 and 16000 in stage 4, and --count the
+ * total of the iterations. In stages 2 to 4 both have the label of
+ * label.h in the top right corner. --setup, for stages 2 to 4, prints
+ * the other words that the NICE build writes for its screen: in stages
+ * 2 and 3 its glyphs in the font RAM from code 0x80, and then its font
+ * base, and in stage 4 the screen's mode word.
  *
- * STAGE is 1, 80x25, 2, 80x50, or 3, 160x100. --keys, for stages 2
- * and 3, applies the bytes of KEYS to the view first (view.h), as the
+ * STAGE is 1, 80x25, 2, 80x50, 3, 160x100 in octants, or 4, 160x100
+ * in the chunky mode. --keys, for stages 2 to 4, applies the bytes of KEYS to the view first (view.h), as the
  * NICE build does when they are its input: the picture is that of the
  * view after the last key. A q in KEYS is an error, as the NICE build then clears the
  * screen. The counts are those of the NICE builds, as mandel.c computes
@@ -112,10 +114,49 @@ static unsigned long draw3(const struct view *v, enum mode mode)
     return iterations;
 }
 
-// The words that stage 2 or 3 writes to the font RAM from code 0x80,
-// GLYPH_HALF or GLYPH_OCTANT, then the font base, which shows the RAM.
-static void glyphs(int stage)
+// Stage 4: one point a screen word, printed as a line of COLS4
+// characters for each row. A pixel of the label is '#' where it is set,
+// and ' ' where it is clear. Returns the total of the counts.
+static unsigned long draw4(const struct view *v, enum mode mode)
 {
+    unsigned long iterations = 0;
+
+    for (int y = 0; y < ROWS4; ++y)
+    {
+        int32_t b = view_im(v, y);
+        char line[COLS4 + 1];
+
+        for (int x = 0; x < COLS4; ++x)
+        {
+            int count = mandel_count(view_re(v, x), b, v->max_iter);
+            int bit = label_bit(x, y);
+
+            iterations += (unsigned long) count;
+            if (mode == WORDS)
+                printf("%08x\n",
+                       (unsigned) label_pixel(x, y,
+                                  mandel_pixel4(mandel_color(count, v->max_iter))));
+            line[x] = bit == LABEL_NONE ? shade(count, v->max_iter)
+                    : bit ? '#' : ' ';
+        }
+        line[COLS4] = 0;
+        if (mode == CHARS)
+            printf("%s\n", line);
+    }
+    return iterations;
+}
+
+// The other words that stage 2, 3, or 4 writes for its screen: in
+// stages 2 and 3 its glyphs in the font RAM from code 0x80,
+// GLYPH_HALF or GLYPH_OCTANT, then the font base, which shows the RAM,
+// and in stage 4 the mode word, the chunky mode.
+static void setup(int stage)
+{
+    if (stage == 4)
+    {
+        printf("%08x\n", 1u);
+        return;
+    }
     for (unsigned code = 0x80; code < (stage == 2 ? 0x81u : 0x100u); ++code)
         for (int r = 0; r < 32; ++r)
             printf("%08x\n", stage == 2 ? (r < 16 ? 0xFFFFu : 0)
@@ -125,7 +166,7 @@ static void glyphs(int stage)
 
 static int usage(const char *name)
 {
-    fprintf(stderr, "usage: %s 1|2 [--keys KEYS] [--words | --count]\n",
+    fprintf(stderr, "usage: %s 1|2|3|4 [--keys KEYS] [--words | --count | --setup]\n",
             name);
     return 1;
 }
@@ -135,30 +176,31 @@ int main(int argc, char *argv[])
     const char *stage = argc > 1 ? argv[1] : "";
     const char *keys = NULL;
     enum mode mode = CHARS;
-    int glyphs_only = 0;
+    int setup_only = 0;
     unsigned long iterations = 0;
 
-    if (strcmp(stage, "1") && strcmp(stage, "2") && strcmp(stage, "3"))
+    if (strcmp(stage, "1") && strcmp(stage, "2") && strcmp(stage, "3")
+        && strcmp(stage, "4"))
         return usage(argv[0]);
     for (int i = 2; i < argc; ++i)
     {
-        int no_mode = mode == CHARS && !glyphs_only;
+        int no_mode = mode == CHARS && !setup_only;
 
         if (!strcmp(argv[i], "--words") && no_mode)
             mode = WORDS;
         else if (!strcmp(argv[i], "--count") && no_mode)
             mode = COUNT;
-        else if (!strcmp(argv[i], "--glyphs") && no_mode && *stage != '1')
-            glyphs_only = 1;
+        else if (!strcmp(argv[i], "--setup") && no_mode && *stage != '1')
+            setup_only = 1;
         else if (!strcmp(argv[i], "--keys") && i + 1 < argc && !keys
                  && *stage != '1')
             keys = argv[++i];
         else
             return usage(argv[0]);
     }
-    if (glyphs_only)
+    if (setup_only)
     {
-        glyphs(*stage - '0');
+        setup(*stage - '0');
         return 0;
     }
 
@@ -188,8 +230,10 @@ int main(int argc, char *argv[])
 
         if (*stage == '2')
             view_init(&v, COLS, ROWS2);
-        else
+        else if (*stage == '3')
             view_init(&v, COLS3, ROWS3);
+        else
+            view_init(&v, COLS4, ROWS4);
         for (const char *k = keys ? keys : ""; *k; ++k)
         {
             if (view_key(&v, (unsigned char) *k) == VIEW_QUIT)
@@ -198,7 +242,8 @@ int main(int argc, char *argv[])
                 return 1;
             }
         }
-        iterations = *stage == '2' ? draw2(&v, mode) : draw3(&v, mode);
+        iterations = *stage == '2' ? draw2(&v, mode)
+                   : *stage == '3' ? draw3(&v, mode) : draw4(&v, mode);
     }
     if (mode == COUNT)
         printf("%lu\n", iterations);

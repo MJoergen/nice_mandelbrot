@@ -116,4 +116,17 @@ static inline uint32_t mandel_glyph3(unsigned code, int r)
     return (bits & 2 ? 0xFF00u : 0) | (bits & 1 ? 0x00FFu : 0);
 }
 
+// Stage 4: the chunky mode of the screen (nice_cpu's DEVICES.md
+// §1.10), one screen word a point, 160x100, each point 8x8 pixels,
+// square, in its own color, so the picture is exact everywhere. The
+// color is the word's bits 31..20, as the background of a cell, and
+// the other bits are ignored; they are 0 here. view.h places the points,
+// as in stage 3.
+#define COLS4 160
+#define ROWS4 100
+static inline uint32_t mandel_pixel4(uint32_t color)
+{
+    return color << 20;
+}
+
 #endif

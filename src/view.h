@@ -1,9 +1,9 @@
 /***************************************************************
- * view.h: the part of the complex plane that stages 2 and 3 show, and the
+ * view.h: the part of the complex plane that stages 2 to 4 show, and the
  * keys that move it.
  *
  * The view is cols x rows points, square, step apart: 80x50 in stage
- * 2, 160x100 in stage 3. Its left edge is re0, and the imaginary axis
+ * 2, 160x100 in stages 3 and 4. Its left edge is re0, and the imaginary axis
  * of its rows is at im0, in the middle. It starts as the whole set,
  * the real part from -2.0 to 1.0, the same points as stage 2 had with
  * fixed constants.

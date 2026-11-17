@@ -14,17 +14,18 @@ screen is read, and then a break ends the program's input, as the end
 of niceemu's input does. With -s, the screen is printed at the end, as
 niceemu --screen prints it, and with --color as niceemu --color does,
 so that a run on the board can be compared with one in niceemu. --dump
-FILE writes the screen's 2000 words, the font base, and the font RAM and
-the character ROM to FILE as niceemu -d 0xFFFF0000:2000 -d
-0xFFFFFF86:1 -d 0xFFFE0000:16384 prints them, for screenshot.py.
+FILE writes the screen's 16000 words, as many as the chunky mode
+has, the font base, the font RAM and the character ROM, and the mode
+word to FILE as niceemu -d 0xFFFF0000:16000 -d 0xFFFFFF86:1 -d
+0xFFFE0000:16384 -d 0xFFFFFF87:1 prints them, for screenshot.py.
 
 LINK is how to reach the board, as NiceMonMEGA65's tools take it:
 --eth HOST for its Ethernet port, or --port DEVICE for its debug UART.
 --nicemon DIR (or $NICEMON, or ../NiceMonMEGA65) is a checkout of
 NiceMonMEGA65, whose tools/ has the link, in Python with no packages.
 
-It comes from nice_chess's tools/board.py. make board-test runs stage
-2 with it, and compares the screen of --dump with the host's.
+It comes from nice_chess's tools/board.py. make board-test runs stages
+2 to 4 with it, and compares the screen of --dump with the host's.
 
 Copyright (c) 2026 Michael Jørgensen. MIT license (see LICENSE).
 """
@@ -38,9 +39,14 @@ import sys
 import time
 
 SCREEN = 0xFFFF0000
-SCREEN_WORDS = 2000
-# The font base, the font RAM, and the character ROM (nice_cpu's SYSTEM.md §1.8)
-FONT_RANGES = [(0xFFFFFF86, 1), (0xFFFE0000, 8192), (0xFFFE2000, 8192)]
+# The words of the 80x25 text, and of the 160x100 of the chunky mode
+# (nice_cpu's DEVICES.md §1.10)
+TEXT_WORDS = 2000
+SCREEN_WORDS = 16000
+# The font base, the font RAM, and the character ROM (nice_cpu's SYSTEM.md
+# §1.8), and the screen's mode word (DEVICES.md §1.10), which reads 0 on a
+# board without the chunky mode
+FONT_RANGES = [(0xFFFFFF86, 1), (0xFFFE0000, 8192), (0xFFFE2000, 8192), (0xFFFFFF87, 1)]
 
 
 # The module of NiceMonMEGA65's tools with the debug link: boardlink.py
@@ -132,18 +138,18 @@ class Board:
             lines.append(line)
         return lines
 
-    def screen(self) -> list[int]:
-        """The 2000 words of the screen. The core is paused for the
+    def screen(self, n: int = TEXT_WORDS) -> list[int]:
+        """The first n words of the screen. The core is paused for the
         read, and goes on afterwards."""
         nl = self.nicelink
         self.link.control(nl.PAUSE)
-        words = self.link.read(SCREEN, SCREEN_WORDS)
+        words = self.link.read(SCREEN, n)
         self.link.control(0)
         return words
 
     def font(self) -> list[tuple[int, list[int]]]:
-        """The font base, the font RAM, and the character ROM, as
-        (address, words). The core is paused for the read."""
+        """The font base, the font RAM, the character ROM, and the mode
+        word, as (address, words). The core is paused for the read."""
         nl = self.nicelink
         self.link.control(nl.PAUSE)
         out = [(a, self.link.read(a, n)) for a, n in FONT_RANGES]
@@ -212,7 +218,8 @@ def main() -> None:
     ap.add_argument("-i", "--input", help="the program's input (default stdin)")
     ap.add_argument("-s", "--screen", action="store_true", help="print the screen at the end")
     ap.add_argument("--color", action="store_true", help="print it with its colors")
-    ap.add_argument("--dump", metavar="FILE", help="write the screen's and the font's words to FILE at the end")
+    ap.add_argument("--dump", metavar="FILE",
+                    help="write the screen's, the font's, and the mode's words to FILE at the end")
     ap.add_argument("--settle", type=float, default=2,
                     help="seconds of quiet before the screen is read and the input ended (default 2)")
     ap.add_argument("--timeout", type=float, default=600, help="seconds (default 600)")
@@ -234,12 +241,12 @@ def main() -> None:
         if line is not None:
             print(line, flush=True)
         elif words is None and board.quiet(args.settle):
-            words = board.screen()
+            words = board.screen(SCREEN_WORDS if args.dump else TEXT_WORDS)
             if args.dump:
                 font = board.font()
             board.end_input()
     if words is None:
-        words = board.screen()
+        words = board.screen(SCREEN_WORDS if args.dump else TEXT_WORDS)
         if args.dump:
             font = board.font()
     if args.screen or args.color:

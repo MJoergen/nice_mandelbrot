@@ -18,7 +18,9 @@ corner.
 Each [release](https://github.com/MJoergen/nice_mandelbrot/releases)
 has one file for the MEGA65, such as `nice_mandelbrot_1.0.bin` of
 V1.0: stage 2 up to V1.0, and stage 3 from the release after it. It needs the monitor of
-NiceMonMEGA65 V2.1 or later. Copy it into the folder `NICE` of the SD
+NiceMonMEGA65 V2.1 or later. Stage 4, in the chunky mode, is not the
+file of a release yet, as it needs NiceMonMEGA65 V2.3, which is not
+released yet (The chunky mode, below). Copy it into the folder `NICE` of the SD
 card, and at the monitor's prompt type
 
     load nice_mandelbrot_1.0.bin
@@ -52,17 +54,25 @@ inner loop off the floating-point unit, whose `MUL` takes some 20 cycles.
 ## The resolutions
 
 The screen is 80×25 characters, each 16×32 pixels, so 1280×800 pixels.
-There are three stages:
+There are four stages:
 
 | Stage | Resolution | How a point is drawn | Pixel shape on the screen |
 |---|---|---|---|
 | 1 | 80×25 | one character cell per point, its background color | 16×32 |
 | 2 | 80×50 | a glyph of 2×1 blocks, the upper half block, in the font RAM | 16×16 |
 | 3 | 160×100 | a font of 2×4 blocks, the octants, in the font RAM | 8×8 |
+| 4 | 160×100 | one screen word per point, in the chunky mode of the screen | 8×8 |
 
 In stage 1 the points are twice as tall as they are wide, so the step
 in the imaginary direction is twice the step in the real one. In
-stages 2 and 3 they are square, and the two steps are the same.
+stages 2 to 4 they are square, and the two steps are the same.
+
+Stage 4 needs the chunky mode of the screen, which nice_cpu has from
+V2.3 on (its DEVICES.md §1.10), and NiceMonMEGA65 from its V2.3 on, on
+the MEGA65 only. **NiceMonMEGA65 V2.3 is not quite released yet**, so
+for now stage 4 runs in niceemu, and on a MEGA65 with a build of
+NiceMonMEGA65's `dev-V2.3`. Stages 1 to 3 run on NiceMonMEGA65 V2.1
+and later, on the MEGA65 and the Nexys4DDR.
 
 ![Stage 2, the Mandelbrot set at 80×50](docs/stage2.png)
 
@@ -102,6 +112,30 @@ the program always draws the top-left point in the foreground: bit 7 is
 set, and the glyph's code is the pattern itself, `0x80` to `0xFF`.
 Those 128 glyphs replace codes `0x80`–`0xFF` of the copy of the
 character ROM, and `0x00`–`0x7F` keep its ASCII for the label.
+
+### The chunky mode
+
+![Stage 4, the Mandelbrot set at 160×100 in the chunky mode](docs/stage4.png)
+
+Stage 4 shows the same 160×100 points as stage 3, without the clash of
+colors: in the chunky mode of the screen (nice_cpu's DEVICES.md §1.10,
+issue #1), each of the 16 000 screen words is a point, a square of 8×8
+pixels in the color of the word's bits 31..20. So the image is exact
+everywhere, also along the border of the set. Stage 4 writes no font;
+it only selects the mode.
+
+The program writes 1 to the screen's mode word at `0xFFFFFF87` and
+reads it back. A system without the mode, such as NiceMonMEGA65 before
+V2.3, or the Nexys4DDR, which has too few screen words for it, reads 0.
+The program then writes
+
+    nice_mandelbrot stage 4: the screen has no chunky mode, which NiceMonMEGA65 has from V2.3 on, on the MEGA65
+
+to the console and returns 1, and the screen stays as it was.
+
+The font is not shown in the mode, so the label in the top right corner
+is drawn in the points, in capitals of 3×5 points, white on black:
+`NICE_MANDELBROT V1.0`.
 
 ## Estimated running times
 
@@ -148,7 +182,7 @@ Notes on the estimate:
 
 ## Building and running
 
-Stages 1 to 3 build with the toolchain of
+Stages 1 to 4 build with the toolchain of
 [nice_cpu](https://github.com/MJoergen/nice_cpu) V2.3, which `make deps`
 fetches into `deps/`, with niceemu from that release's files, and need
 clang with the wasm32 target, `wasm-ld`, and `llvm-ar`. `NICE_CPU=DIR`
@@ -158,11 +192,12 @@ and `NICEEMU=PATH` use a local checkout and niceemu instead.
     make all     # build/nice/stageN.bin for niceemu, build/mega65/stageN.bin
                  # for the MEGA65's monitor at 0x8000, build/host/mandel_host
     make test    # both NICE builds of each stage in niceemu, their screens
-                 # and glyphs compared with the host's, also after a series of keys
-    make run     # stage 2 in niceemu, its screen printed in color (STAGE=1 or 3)
-    make explore # stage 2 in niceemu's window, to pan and zoom (STAGE=3 for
-                 # stage 3; fetches niceemu's window build)
-    make screenshot  # docs/stage2.png and docs/stage3.png, the screens in niceemu
+                 # and glyphs or mode compared with the host's, also after a
+                 # series of keys
+    make run     # stage 2 in niceemu, its screen printed in color (STAGE=1, 3, or 4)
+    make explore # stage 2 in niceemu's window, to pan and zoom (STAGE=3 or 4
+                 # for stage 3 or 4; fetches niceemu's window build)
+    make screenshot  # docs/stage2.png to docs/stage4.png, the screens in niceemu
                  # (needs Pillow)
     make dist    # build/dist/nice_mandelbrot_1.0.bin, the file of a release (VERSION=V1.0)
 
@@ -171,9 +206,12 @@ NiceMonMEGA65 for its tools (`NICEMON=DIR`, `../NiceMonMEGA65` by
 default), and the board on its Ethernet port (`ETH=IP`) or its debug
 UART (`PORT=DEVICE`):
 
-    make board-run       # stage 3 on the board
-    make board-test      # stages 2 and 3 on the board, their screens compared with the host's
+    make board-run       # stage 3 on the board (BOARD_STAGE=4 for stage 4)
+    make board-test      # stages 2 to 4 on the board, their screens compared with the host's
     make release-check   # board-test, and the stamp of a release (docs/RELEASE.md)
+
+Stage 4 of `board-test` needs NiceMonMEGA65 V2.3 on the MEGA65, with
+the chunky mode.
 
 Each program draws the picture a row of cells at a time, then writes
 the iterations, cycles, instructions, and microseconds it took to the
@@ -181,30 +219,30 @@ console's line, and waits for a key. In stage 1, any key clears the
 screen and returns. At the end of the console's input, as in niceemu,
 it returns at once.
 
-### Pan and zoom in stages 2 and 3
+### Pan and zoom in stages 2 to 4
 
-Stages 2 and 3 take these keys:
+Stages 2 to 4 take these keys:
 
 | Key | Action |
 |---|---|
-| ← → ↑ ↓ | Pan by a tenth of the width, 8 points in stage 2 and 16 in stage 3 |
+| ← → ↑ ↓ | Pan by a tenth of the width, 8 points in stage 2 and 16 in stages 3 and 4 |
 | `+` or `=` | Zoom in, twice, about the middle |
 | `-` or `_` | Zoom out, twice |
 | `0` | The whole set again |
-| `q` | Show the character ROM again, clear the screen, and return |
+| `q` | Show the character ROM again, or the text in stage 4, clear the screen, and return |
 
 The cursor keys are the xterm sequences `ESC [ A` to `ESC [ D`, which
 niceemu's window and the MEGA65's keyboard send, and also `ESC O A` to
 `ESC O D`. Other sequences, such as those of the function keys, do
-nothing. After each row of cells the program reads the keys that wait,
+nothing. After each row of cells, or of points in stage 4, the program reads the keys that wait,
 and a key that moves the view starts the new picture at once. So a key
 held down does not queue up pictures, and only whole pictures write
 their figures.
 
 Each zoom in halves the step between points, from 3/80 at the start
 down to 2⁻²⁴, after 19 zooms, where the points are a step of the fixed
-point apart. Stage 3 shows the same part of the plane at each zoom,
-with points half as far apart, from 3/160, so it reaches 2⁻²⁴ after 18. Each also adds 64 to the highest count, 256 at the start,
+point apart. Stages 3 and 4 show the same part of the plane at each zoom,
+with points half as far apart, from 3/160, so they reach 2⁻²⁴ after 18. Each also adds 64 to the highest count, 256 at the start,
 so that the border of the set keeps its detail: 1472 at the deepest. One
 zoom out from the start is allowed, to a width of 6, and the view stays
 inside −4 to 4 on both axes, where the fixed point cannot overflow
@@ -222,13 +260,14 @@ The files:
   fraction bits, and the colors. On NICE each product is one of the math
   unit, through `nice_poke` and `nice_peek`; on the host it is a 64-bit
   product in C, with the same bits.
-- `src/view.c`, `src/view.h`: the view of stages 2 and 3, and the keys
+- `src/view.c`, `src/view.h`: the view of stages 2 to 4, and the keys
   that pan and zoom it, for NICE and for the host.
 - `src/label.c`, `src/label.h`: the name and the version in the top
-  right corner of stages 2 and 3, for NICE and for the host. The version is
+  right corner of stages 2 to 4, for NICE and for the host, in the ROM's
+  letters, or in stage 4 in a font of 3×5 points. The version is
   `git describe`'s, in `build/gen/version.c`, or the tag's in a
   release.
-- `src/stage1.c`, `src/stage2.c`, `src/stage3.c`: the stages, for
+- `src/stage1.c` to `src/stage4.c`: the stages, for
   NICE. The octants' colors and glyphs of stage 3 are in `src/mandel.c`
   and `src/mandel.h`, shared with the host.
 - `src/report.c`, `src/report.h`: the figures of a run, written to the
@@ -236,10 +275,10 @@ The files:
   not over the picture.
 - `src/host.c`: the stages on the host, as characters, or as the
   screen words of the NICE builds, for `make test`. `--keys` applies a
-  series of keys to the view of stage 2 or 3 first, and `--glyphs`
-  prints the stage's glyphs in the font RAM.
+  series of keys to the view of stages 2 to 4 first, and `--setup`
+  prints the stage's glyphs in the font RAM, or the mode word of stage 4.
 - `tools/screenshot.py`: a screen as a PNG, its cells drawn
-  from the font RAM, for `make screenshot`.
+  from the font RAM, or its points in the chunky mode, for `make screenshot`.
 - `tools/words.py`: the words of a dump of niceemu or the board, by
   address, for the tests.
 - `tools/board.py`: a program under the monitor on the board, as its
@@ -250,17 +289,19 @@ The files:
 
 ## Status
 
-Stages 1 to 3 are written and run in niceemu, stages 2 and 3 with pan
+Stages 1 to 4 are written and run in niceemu, stages 2 to 4 with pan
 and zoom. Stage 3 is the file of a release; `make board-test` runs
-stages 2 and 3 on the board, where stage 3 draws the whole set in
-0.16 s. The NICE BASIC version is not written yet. In niceemu,
-stages 2 and 3 with the label of V1.0:
+stages 2 to 4 on the board, where stages 3 and 4 draw the whole set in
+0.16 s and 0.15 s. Stage 4 has run on the MEGA65 with a build of
+NiceMonMEGA65's `dev-V2.3`. The NICE BASIC version is not written yet.
+In niceemu, stages 2 to 4 with the label of V1.0:
 
 | Stage | Count | Per point | Instructions | At 54 million a second | Without the test |
 |---|---|---|---|---|---|
 | 1, 80×25 | 152 085 | 76 | 1 252 824 | ≈ 0.023 s | 6 077 411 |
 | 2, 80×50 | 297 888 | 74 | 2 366 225 | ≈ 0.044 s | 11 937 338 |
 | 3, 160×100 | 1 191 390 | 74 | 10 592 221 | ≈ 0.20 s | 49 041 256 |
+| 4, 160×100 chunky | 1 191 390 | 74 | 9 773 295 | ≈ 0.18 s | 48 222 330 |
 
 The count is the total of the points' counts, as the programs report it
 under `iterations`: a point in the main cardioid or the period-2 bulb
@@ -270,13 +311,16 @@ about 40 instructions per iteration, and the test makes them some 5
 times faster, with the same picture, word for word. In the view of
 `make test` after the keys, near the border at zoom level 3, it is 15
 times faster: 3 616 617 instructions, from 55 509 627, and in stage 3
-14 times: 16 176 405, from 223 681 435. The rate of 54
+14 times: 16 176 405, from 223 681 435, and in stage 4 too:
+15 366 636, from 222 871 666. Stage 4 computes the points of stage 3,
+and so has the same counts. The rate of 54
 million instructions a second on the MEGA65 is the one nice_chess
 measures.
 Stages 2 and 3 also write the font RAM, 8192 words, before they start
 the clock: stage 2 copies the character ROM, and stage 3 its first half
-and the octants. The label in the top right corner costs some 20 000
-instructions a picture.
+and the octants. Stage 4 writes no font, and needs no choice of two
+colors a cell, so it runs some 8% fewer instructions than stage 3. The label in the
+top right corner costs some 20 000 instructions a picture.
 
 ## License
 
