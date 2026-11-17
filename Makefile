@@ -5,9 +5,9 @@
 # NICE_CPU=DIR and NICEEMU=PATH use local copies instead.
 # make help lists the targets.
 
-NICE_CPU_TAG          := V2.1
-NICEEMU_SHA256        := 4d40fef5ef9a179f803e7e4aba8e26fadd008760bc7c5c4471d525ddb29a0ece
-NICEEMU_WINDOW_SHA256 := ccabcbfec7edee71f64a529364ba11a9693186f3a922be7cdcb5e448d8bb3f25
+NICE_CPU_TAG          := V2.3
+NICEEMU_SHA256        := f1c5b0e68ba9841ccd5b0b9e5cfcbff6946fa02e06316751dc5db24283b41404
+NICEEMU_WINDOW_SHA256 := 688387dd6ea9484f526a53bbba22d4f6a829c7d3b8d3d68f2cb4ce5c4f312a1c
 
 NICE_CPU       ?= deps/nice_cpu-$(NICE_CPU_TAG)
 NICEEMU        ?= deps/niceemu-$(NICE_CPU_TAG)-x86_64-linux/niceemu

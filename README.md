@@ -149,12 +149,12 @@ Notes on the estimate:
 ## Building and running
 
 Stages 1 to 3 build with the toolchain of
-[nice_cpu](https://github.com/MJoergen/nice_cpu) V2.1, which `make deps`
+[nice_cpu](https://github.com/MJoergen/nice_cpu) V2.3, which `make deps`
 fetches into `deps/`, with niceemu from that release's files, and need
 clang with the wasm32 target, `wasm-ld`, and `llvm-ar`. `NICE_CPU=DIR`
 and `NICEEMU=PATH` use a local checkout and niceemu instead.
 
-    make deps    # nice_cpu V2.1 and niceemu V2.1 into deps/
+    make deps    # nice_cpu V2.3 and niceemu V2.3 into deps/
     make all     # build/nice/stageN.bin for niceemu, build/mega65/stageN.bin
                  # for the MEGA65's monitor at 0x8000, build/host/mandel_host
     make test    # both NICE builds of each stage in niceemu, their screens
