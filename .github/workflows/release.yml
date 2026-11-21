@@ -1,7 +1,8 @@
 name: release
 
-# The GitHub release of a tag Vmajor.minor, with stage 3 for the MEGA65,
-# nice_mandelbrot_MAJOR.MINOR.bin, as its file. The tag comes from
+# The GitHub release of a tag Vmajor.minor, with two files for the
+# MEGA65: stage 4, nice_mandelbrot_MAJOR.MINOR.bin, and stage 3,
+# nice_mandelbrot_MAJOR.MINOR_stage3.bin. The tag comes from
 # tools/release.py tag (docs/RELEASE.md step 6), after test.yml passed
 # on its commit and the stamp of the board, so this workflow runs only
 # what the file needs: the tests, with the tag as the version.
@@ -29,7 +30,7 @@ jobs:
         run: make deps
       - name: Test
         run: make test
-      - name: The file
+      - name: The files
         run: make dist
       - name: The GitHub release
         env:
@@ -39,4 +40,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --verify-tag \
             --title "$(head -n 1 "$RUNNER_TEMP/section.md")" \
             --notes-file "$RUNNER_TEMP/notes.md" \
-            "build/dist/nice_mandelbrot_${GITHUB_REF_NAME#V}.bin"
+            "build/dist/nice_mandelbrot_${GITHUB_REF_NAME#V}.bin" \
+            "build/dist/nice_mandelbrot_${GITHUB_REF_NAME#V}_stage3.bin"

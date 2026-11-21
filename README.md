@@ -7,23 +7,24 @@ the [NICE CPU](https://github.com/MJoergen/nice_cpu) on the MEGA65, and in
 `niceemu`. It is written in C first, and later in NICE BASIC, the
 interpreter planned for the ROM of NiceMonMEGA65.
 
-![Stage 3, the Mandelbrot set at 160×100](docs/stage3.png)
+![Stage 4, the Mandelbrot set at 160×100 in the chunky mode](docs/stage4.png)
 
-Stage 3 at 160×100, 1280×800 pixels, drawn from the screen that niceemu
+Stage 4 at 160×100, 1280×800 pixels, drawn from the screen that niceemu
 dumps after the run, with the name and the version in the top right
 corner.
 
 ## Download
 
 Each [release](https://github.com/MJoergen/nice_mandelbrot/releases)
-has one file for the MEGA65, such as `nice_mandelbrot_1.0.bin` of
-V1.0: stage 2 up to V1.0, and stage 3 from the release after it. It needs the monitor of
-NiceMonMEGA65 V2.1 or later. Stage 4, in the chunky mode, is not the
-file of a release yet, as it needs NiceMonMEGA65 V2.3, which is not
-released yet (The chunky mode, below). Copy it into the folder `NICE` of the SD
-card, and at the monitor's prompt type
+has a file for the MEGA65, such as `nice_mandelbrot_1.2.bin` of V1.2:
+stage 2 in V1.0, stage 3 in V1.1, and stage 4, in the chunky mode, from
+V1.2 on. Stage 4 needs the monitor of NiceMonMEGA65 V2.3 or later, on
+the MEGA65 (The chunky mode, below). From V1.2 on, a release also has
+stage 3 as `nice_mandelbrot_1.2_stage3.bin`, for NiceMonMEGA65 V2.1
+or later, and for the Nexys4DDR. Copy the file into the folder `NICE`
+of the SD card, and at the monitor's prompt type
 
-    load nice_mandelbrot_1.0.bin
+    load nice_mandelbrot_1.2.bin
     r
 
 [RELEASE_NOTES.md](RELEASE_NOTES.md) lists what each release changed,
@@ -69,10 +70,8 @@ stages 2 to 4 they are square, and the two steps are the same.
 
 Stage 4 needs the chunky mode of the screen, which nice_cpu has from
 V2.3 on (its DEVICES.md §1.10), and NiceMonMEGA65 from its V2.3 on, on
-the MEGA65 only. **NiceMonMEGA65 V2.3 is not quite released yet**, so
-for now stage 4 runs in niceemu, and on a MEGA65 with a build of
-NiceMonMEGA65's `dev-V2.3`. Stages 1 to 3 run on NiceMonMEGA65 V2.1
-and later, on the MEGA65 and the Nexys4DDR.
+the MEGA65 only. Stages 1 to 3 run on NiceMonMEGA65 V2.1 and later, on
+the MEGA65 and the Nexys4DDR.
 
 ![Stage 2, the Mandelbrot set at 80×50](docs/stage2.png)
 
@@ -135,7 +134,7 @@ to the console and returns 1, and the screen stays as it was.
 
 The font is not shown in the mode, so the label in the top right corner
 is drawn in the points, in capitals of 3×5 points, white on black:
-`NICE_MANDELBROT V1.0`.
+`NICE_MANDELBROT V1.2`.
 
 ## Estimated running times
 
@@ -199,14 +198,15 @@ and `NICEEMU=PATH` use a local checkout and niceemu instead.
                  # for stage 3 or 4; fetches niceemu's window build)
     make screenshot  # docs/stage2.png to docs/stage4.png, the screens in niceemu
                  # (needs Pillow)
-    make dist    # build/dist/nice_mandelbrot_1.0.bin, the file of a release (VERSION=V1.0)
+    make dist    # build/dist/nice_mandelbrot_1.2.bin, stage 4, and
+                 # nice_mandelbrot_1.2_stage3.bin, the files of a release (VERSION=V1.2)
 
 On the MEGA65 under NiceMonMEGA65's monitor, with a checkout of
 NiceMonMEGA65 for its tools (`NICEMON=DIR`, `../NiceMonMEGA65` by
 default), and the board on its Ethernet port (`ETH=IP`) or its debug
 UART (`PORT=DEVICE`):
 
-    make board-run       # stage 3 on the board (BOARD_STAGE=4 for stage 4)
+    make board-run       # stage 4 on the board (BOARD_STAGE=3 for stage 3)
     make board-test      # stages 2 to 4 on the board, their screens compared with the host's
     make release-check   # board-test, and the stamp of a release (docs/RELEASE.md)
 
@@ -290,10 +290,10 @@ The files:
 ## Status
 
 Stages 1 to 4 are written and run in niceemu, stages 2 to 4 with pan
-and zoom. Stage 3 is the file of a release; `make board-test` runs
-stages 2 to 4 on the board, where stages 3 and 4 draw the whole set in
-0.16 s and 0.15 s. Stage 4 has run on the MEGA65 with a build of
-NiceMonMEGA65's `dev-V2.3`. The NICE BASIC version is not written yet.
+and zoom. Stage 4 is the file of a release, with stage 3 beside it;
+`make board-test` runs stages 2 to 4 on the board, where stages 3 and 4
+draw the whole set in 0.16 s and 0.15 s. The NICE BASIC version is not
+written yet.
 In niceemu, stages 2 to 4 with the label of V1.0:
 
 | Stage | Count | Per point | Instructions | At 54 million a second | Without the test |

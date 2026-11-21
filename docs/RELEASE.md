@@ -24,12 +24,16 @@ tag.
 
 - An annotated tag, whose message is the tag's section of
   [RELEASE_NOTES.md](../RELEASE_NOTES.md).
-- A GitHub release with that section as its text, and one file:
-  `nice_mandelbrot_1.0.bin`, stage 3 for the MEGA65 under
-  NiceMonMEGA65's monitor. Its name is a long name, which the
+- A GitHub release with that section as its text, and two files for
+  NiceMonMEGA65's monitor: `nice_mandelbrot_1.2.bin`, stage 4, which
+  needs the chunky mode of NiceMonMEGA65 V2.3 or later on the MEGA65,
+  and `nice_mandelbrot_1.2_stage3.bin`, stage 3, for NiceMonMEGA65 V2.1
+  or later and the Nexys4DDR. Their names are long names, which the
   monitor's `load` takes from the SD card from NiceMonMEGA65 V2.1 on.
+  Up to V1.1, a release had one file, stage 2 in V1.0 and stage 3 in
+  V1.1.
 
-`make dist` makes it in `build/dist/`.
+`make dist` makes them in `build/dist/`.
 
 ## What you need
 
@@ -42,8 +46,7 @@ tag.
   (`PORT=DEVICE`), and a checkout of NiceMonMEGA65 for its tools
   (`NICEMON=DIR`, `../NiceMonMEGA65` by default). Stage 4 needs the
   chunky mode of the screen, which NiceMonMEGA65 has from V2.3 on, so
-  `make board-test` needs that monitor, or a build of its `dev-V2.3`
-  until V2.3 is released.
+  `make board-test` needs that monitor or a later one.
 
 ## 1. Prepare
 
@@ -104,7 +107,7 @@ not the tag. It differs from the release's only in that string, which
 the host's words have too.
 
 Also look at the picture on the board's screen: `make board-run`, then
-pan and zoom with the keys.
+pan and zoom with the keys, and `make board-run BOARD_STAGE=3`.
 
 ## 5. CI
 
@@ -132,35 +135,38 @@ pushes. By hand:
 The push of the tag starts
 [release.yml](../.github/workflows/release.yml). With `VERSION` set to
 the tag, it runs `make test`, then `make dist`, and creates the GitHub
-release with the section as its text, and the file. Wait for it, and
+release with the section as its text, and the files. Wait for it, and
 look at the release:
 
     gh run watch $(gh run list --workflow release.yml --limit 1 --json databaseId -q '.[0].databaseId')
-    gh release view V1.0
+    gh release view V1.2
 
 If it failed on a passing cause, such as the network, rerun it with
-`gh run rerun`. Otherwise run `make dist VERSION=V1.0` on a checkout of
+`gh run rerun`. Otherwise run `make dist VERSION=V1.2` on a checkout of
 the tag, and create the release by hand, as release.yml does:
 
-    python3 tools/release.py section V1.0 > section.md
+    python3 tools/release.py section V1.2 > section.md
     tail -n +2 section.md > notes.md
-    gh release create V1.0 --verify-tag --title "$(head -n 1 section.md)" \
-       --notes-file notes.md build/dist/nice_mandelbrot_1.0.bin
+    gh release create V1.2 --verify-tag --title "$(head -n 1 section.md)" \
+       --notes-file notes.md build/dist/nice_mandelbrot_1.2.bin \
+       build/dist/nice_mandelbrot_1.2_stage3.bin
 
-## 8. The file
+## 8. The files
 
-Try the file as a user gets it: download it, copy it into the folder
-`NICE` of the SD card, and on the MEGA65 type `load
-nice_mandelbrot_1.0.bin`, then `r`. The top right corner must say
-`nice_mandelbrot V1.0`.
+Try the files as a user gets them: download them, copy them into the
+folder `NICE` of the SD card, and on the MEGA65 type `load
+nice_mandelbrot_1.2.bin`, then `r`, and the same for
+`nice_mandelbrot_1.2_stage3.bin`. The top right corner must say
+`NICE_MANDELBROT V1.2` in stage 4, and `nice_mandelbrot V1.2` in
+stage 3.
 
-    gh release download V1.0 --dir build/release/V1.0
+    gh release download V1.2 --dir build/release/V1.2
 
-Without the card at hand, `tools/load.py` of NiceMonMEGA65 loads it
+Without the card at hand, `tools/load.py` of NiceMonMEGA65 loads them
 over the link:
 
     python3 ../NiceMonMEGA65/tools/load.py --eth 192.168.1.65 --monitor \
-        build/release/V1.0/nice_mandelbrot_1.0.bin
+        build/release/V1.2/nice_mandelbrot_1.2.bin
 
 A tag is never moved, and a release is not deleted. A fix is the next
 release, or the release notes say what is wrong.

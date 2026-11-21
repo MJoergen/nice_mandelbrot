@@ -57,13 +57,14 @@ help:
 	@echo "               (fetches niceemu's window build into deps/)"
 	@echo "  make screenshot  draw the screens of stages 2 to 4 in niceemu as docs/stageN.png"
 	@echo "               (needs Pillow)"
-	@echo "  make dist    the file of a release, build/dist/nice_mandelbrot_1.0.bin (VERSION=V1.0)"
+	@echo "  make dist    the files of a release in build/dist/: nice_mandelbrot_1.2.bin, stage 4,"
+	@echo "               and nice_mandelbrot_1.2_stage3.bin (VERSION=V1.2)"
 	@echo "  make clean   remove build/"
 	@echo "  make distclean   remove build/ and deps/"
 	@echo ""
 	@echo "The board (ETH=IP or PORT=DEVICE, and NICEMON=DIR, a checkout of NiceMonMEGA65,"
 	@echo "default ../NiceMonMEGA65):"
-	@echo "  make board-run      run stage BOARD_STAGE (default 3) on the MEGA65 under the monitor"
+	@echo "  make board-run      run stage BOARD_STAGE (default 4) on the MEGA65 under the monitor"
 	@echo "  make board-test     the tests of stages 2 to 4 on the board, their screens against the host's"
 	@echo "                      (stage 4 needs NiceMonMEGA65 V2.3 on the MEGA65)"
 	@echo "  make release-check  board-test, and the stamp that tools/release.py tag needs (docs/RELEASE.md)"
@@ -224,7 +225,7 @@ docs/stage%.png: build/test/stage%.out tools/screenshot.py tools/words.py
 # the font once the program is quiet, and then ends its input.
 BOARD = $(PYTHON) tools/board.py $(BOARDLINK)
 
-BOARD_STAGE ?= 3
+BOARD_STAGE ?= 4
 board-run: build/mega65/stage$(BOARD_STAGE).bin
 	$(PYTHON) $(NICEMON)/tools/load.py $(BOARDLINK) --monitor $<
 
@@ -254,17 +255,22 @@ board-test: $(foreach s,$(BOARD_STAGES),build/mega65/stage$(s).bin build/test/ho
 release-check:
 	$(PYTHON) tools/release.py check $(BOARDLINK)
 
-# A release (docs/RELEASE.md): stage 3 for the MEGA65, under the
-# monitor, as nice_mandelbrot_MAJOR.MINOR.bin, a long name, which the
-# monitor's load takes from NiceMonMEGA65 V2.1 on. The release workflow
-# runs it with VERSION set to the tag, after the tests.
-DIST      = build/dist
-DIST_FILE = $(DIST)/nice_mandelbrot_$(patsubst V%,%,$(VERSION)).bin
-dist: build/mega65/stage3.bin
+# A release (docs/RELEASE.md): two files for the MEGA65, under the
+# monitor, with long names, which the monitor's load takes from
+# NiceMonMEGA65 V2.1 on. nice_mandelbrot_MAJOR.MINOR.bin is stage 4, which
+# needs the chunky mode of NiceMonMEGA65 V2.3 on the MEGA65, and
+# nice_mandelbrot_MAJOR.MINOR_stage3.bin is stage 3, for older monitors
+# and the Nexys4DDR. The release workflow runs it with VERSION set to the
+# tag, after the tests.
+DIST        = build/dist
+DIST_NAME   = $(DIST)/nice_mandelbrot_$(patsubst V%,%,$(VERSION))
+DIST_FILES  = $(DIST_NAME).bin $(DIST_NAME)_stage3.bin
+dist: build/mega65/stage4.bin build/mega65/stage3.bin
 	rm -rf $(DIST)
 	mkdir -p $(DIST)
-	cp $< $(DIST_FILE)
-	@echo "$(DIST_FILE)"
+	cp build/mega65/stage4.bin $(DIST_NAME).bin
+	cp build/mega65/stage3.bin $(DIST_NAME)_stage3.bin
+	@echo "$(DIST_FILES)"
 
 deps: $(NICE_CPU) $(NICEEMU)
 
