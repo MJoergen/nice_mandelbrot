@@ -180,7 +180,7 @@ define check
 	$(WORDS) $(3) 0xFFFF0000 $(SCREEN_WORDS_$(1)) | cmp - $(4)
 	[ $(1) = 1 ] || for r in $(SETUP_$(1)); do $(WORDS) $(3) $${r%:*} $${r#*:} || exit 1; done | \
 	  cmp - build/test/setup$(1).words
-	[ "$$(grep '^iterations' $(2) | tail -1)" = \
+	[ "$$(grep -a '^iterations' $(2) | tail -1)" = \
 	  "iterations   $$(build/host/mandel_host $(1) $(if $(5),--keys "$$(printf '$(5)')") --count)" ] || \
 	  { echo "$(2): the iterations differ from the host's"; exit 1; }
 endef
@@ -240,9 +240,9 @@ define board_check
 	@$(call check,$(1),build/board/stage$(1).out,build/board/stage$(1).dump,build/test/host$(1).words)
 	printf '$(KEYS)' | $(BOARD) --dump build/board/keys_stage$(1).dump build/mega65/stage$(1).bin > build/board/keys_stage$(1).out
 	@$(call check,$(1),build/board/keys_stage$(1).out,build/board/keys_stage$(1).dump,build/test/keys_host$(1).words,$(KEYS))
-	@grep -A4 '^nice_mandelbrot' build/board/stage$(1).out
+	@grep -a -A4 '^nice_mandelbrot' build/board/stage$(1).out
 	@echo "stage $(1) after keys:"
-	@grep -A4 '^nice_mandelbrot' build/board/keys_stage$(1).out | tail -5
+	@grep -a -A4 '^nice_mandelbrot' build/board/keys_stage$(1).out | tail -5
 endef
 
 board-test: $(foreach s,$(BOARD_STAGES),build/mega65/stage$(s).bin build/test/host$(s).words \
