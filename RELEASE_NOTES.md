@@ -33,14 +33,14 @@ of the set. The keys are those of V1.1.
   a point ([#1](https://github.com/MJoergen/nice_mandelbrot/issues/1)).
   The points, the zooms, and the pans are those of V1.1, without the
   approximate colors of its cells near the border. The whole set takes
-  some 0.15 s on the MEGA65 (9.8 million instructions).
+  some 0.15 s on the MEGA65 (9.9 million instructions).
 - The label in the top right corner is drawn in the points, in capitals:
   `NICE_MANDELBROT V1.2`.
 - A release has two files: stage 3 is there too, as
   `nice_mandelbrot_1.2_stage3.bin`.
 
 Built with nice_cpu V2.3. Checked on the MEGA65 under NiceMonMEGA65
-TODO.
+V2.4.
 
 ## V1.1 (2026-11-15)
 
